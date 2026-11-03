@@ -108,15 +108,6 @@ node dev/dev-server.mjs  # 本地预览
 node --check lib/index.js lib/state.js lib/client.js
 ```
 
-## 背景音乐
-
-面板顶栏有一个「音乐」按钮，点开后：
-
-- 粘贴音频直链（mp3 / ogg / m4a 等可直接播放的链接），点「使用并播放」
-- 链接会保存到浏览器 `localStorage`，下次打开自动带出
-- 也可以用 `?music=<URL 编码后的链接>` 打开页面，自动加载（浏览器禁止自动播放，点一下「播放」即可）
-- 支持音量调节与播放/暂停
-
 ## 交互
 
 | 操作 | 结果 |
