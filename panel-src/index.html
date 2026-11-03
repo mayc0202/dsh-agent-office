@@ -140,6 +140,13 @@
   #meter .sub{display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:8px}
   #meter .sub b{color:var(--ink);font-weight:500}
 
+  /* ---------- 余额 ---------- */
+  #balance .panel__body{padding:0 16px 16px}
+  #balance .big{font-family:var(--mono);font-size:32px;font-weight:650;letter-spacing:-1px;line-height:1.05;margin-top:2px}
+  #balance .big small{font-size:12px;font-weight:500;color:var(--dim);letter-spacing:0;margin-left:6px}
+  #balance .sub{display:flex;justify-content:space-between;gap:10px;font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:6px}
+  #balance .sub b{color:var(--ink);font-weight:500}
+
   /* ---------- 提示/空态 ---------- */
   #focusChip{position:absolute;left:50%;top:92px;transform:translateX(-50%);z-index:11;display:flex;align-items:center;gap:10px;padding:6px 6px 6px 14px;border:1px solid rgba(61,225,198,.3);border-radius:999px;background:rgba(12,18,22,.86);backdrop-filter:blur(14px);font-family:var(--mono);font-size:11.5px;color:var(--ink);white-space:nowrap}
   #focusChip[hidden]{display:none}
@@ -239,6 +246,14 @@
     <section id="checks" class="panel">
       <div class="panel__head"><span>运行检查</span><b id="checkScore"></b></div>
       <div class="panel__body" id="checkBody"></div>
+    </section>
+
+    <section id="balance" class="panel">
+      <div class="panel__head"><span>DEEPSEEK 余额</span><b id="balanceState">读取中…</b></div>
+      <div class="panel__body">
+        <div class="big" id="balanceBig">—</div>
+        <div class="sub"><span>赠金 <b id="balanceBonus">—</b></span><span id="balanceUpdated">—</span></div>
+      </div>
     </section>
 
     <aside id="floors" class="panel">

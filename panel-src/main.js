@@ -1592,6 +1592,35 @@ function toastEvent(agent, status, text) {
   activities.length = Math.min(activities.length, 5)
 }
 
+async function refreshBalance() {
+  const big = $('#balanceBig')
+  const bonus = $('#balanceBonus')
+  const state = $('#balanceState')
+  const updated = $('#balanceUpdated')
+  try {
+    const response = await fetch('/night-shift/api/balance', { cache: 'no-store' })
+    const data = await response.json()
+    if (!data?.ok) {
+      if (big) big.textContent = '—'
+      if (bonus) bonus.textContent = '—'
+      if (state) state.textContent = '不可用'
+      if (updated) updated.textContent = data?.error ? String(data.error).slice(0, 28) : '读取失败'
+      return
+    }
+    const symbol = data.currency === 'USD' ? '$' : '¥'
+    const amount = Number.parseFloat(data.balance)
+    const bonusAmount = Number.parseFloat(data.bonus_balance || '0')
+    if (big) big.innerHTML = `${symbol}${Number.isFinite(amount) ? amount.toFixed(2) : '—'}<small>${data.currency}</small>`
+    if (bonus) bonus.textContent = `${symbol}${Number.isFinite(bonusAmount) ? bonusAmount.toFixed(2) : '0.00'}`
+    if (state) state.textContent = '实时'
+    if (updated) updated.textContent = '更新 ' + new Date(data.updated_at ?? Date.now()).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+  } catch {
+    if (big) big.textContent = '—'
+    if (state) state.textContent = '连接失败'
+    if (updated) updated.textContent = '稍后重试'
+  }
+}
+
 async function poll() {
   try {
     const response = await fetch(API, { cache: 'no-store' })
@@ -1659,5 +1688,7 @@ $('#offline').classList.add('show')
 $('#offline').textContent = '正在读取本机会话…'
 poll()
 setInterval(poll, 2000)
+refreshBalance()
+setInterval(refreshBalance, 60_000)
 tick()
 setTimeout(() => $('#hint').classList.add('hide'), 9000)

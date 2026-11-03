@@ -5,12 +5,12 @@
  */
 import { createServer } from 'node:http'
 import { readFileSync } from 'node:fs'
-import { createNightShiftStore } from '../lib/state.js'
+import { createNightShiftStore, fetchDeepSeekBalance } from '../lib/state.js'
 
 const port = Number(process.env.PORT ?? 8899)
 const store = createNightShiftStore({})
 
-const server = createServer((req, res) => {
+const server = createServer(async (req, res) => {
   const path = new URL(req.url ?? '/', 'http://dev.local').pathname
   if (path === '/night-shift' || path === '/night-shift/') {
     try {
@@ -20,6 +20,17 @@ const server = createServer((req, res) => {
     } catch (error) {
       res.writeHead(500, { 'content-type': 'text/plain; charset=utf-8' })
       res.end(String(error))
+    }
+    return
+  }
+  if (path === '/night-shift/api/balance') {
+    try {
+      const payload = await fetchDeepSeekBalance({})
+      res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' })
+      res.end(JSON.stringify(payload))
+    } catch (error) {
+      res.writeHead(500, { 'content-type': 'application/json; charset=utf-8' })
+      res.end(JSON.stringify({ ok: false, error: String(error) }))
     }
     return
   }
