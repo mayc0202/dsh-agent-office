@@ -944,7 +944,8 @@ function buildFloor(team, index, teamAgents) {
 
   // 彩色货架（参考原版的彩色格子）
   const shelf = new THREE.Group()
-  shelf.position.set(-W / 2 + 0.75, 0, -D / 2 + 1.55)
+  shelf.position.set(-W / 2 + 0.22, 0, -0.4)
+  shelf.rotation.y = Math.PI / 2
   const shelfMat = new THREE.MeshStandardMaterial({ color: 0x1b2430, roughness: 0.7, metalness: 0.3 })
   for (const y of [0.5, 1.15, 1.8]) {
     const plank = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.05, 0.35), shelfMat)
