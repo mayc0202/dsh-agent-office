@@ -257,158 +257,52 @@ function disposeGroup(group) {
 function robotFor(agent, index = 0) {
   const group = new THREE.Group()
   const color = new THREE.Color(agent.color || '#3de1c6')
-  const status = STATUS[agent.status] ?? STATUS.resting
-  const accent = new THREE.Color(status.color)
-  const pale = color.clone().lerp(new THREE.Color(0xffffff), 0.24)
-  const dark = color.clone().multiplyScalar(0.42)
+  const accent = new THREE.Color((STATUS[agent.status] ?? STATUS.resting).color)
+  const size = 0.82
+  const baseY = 0.06 + size / 2
 
-  const bodyMat = new THREE.MeshStandardMaterial({ color, roughness: 0.42, metalness: 0.3, emissive: color, emissiveIntensity: 0.12 })
-  const paleMat = new THREE.MeshStandardMaterial({ color: pale, roughness: 0.5, metalness: 0.22, emissive: color, emissiveIntensity: 0.08 })
-  const darkMat = new THREE.MeshStandardMaterial({ color: dark, roughness: 0.5, metalness: 0.35 })
-  const visorMat = new THREE.MeshStandardMaterial({ color: 0x0a1016, roughness: 0.25, metalness: 0.5 })
-  const eyeMat = new THREE.MeshBasicMaterial({ color: accent })
-
-  // 悬浮底座 + 接触阴影
+  // 接触阴影
   const shadow = new THREE.Mesh(
-    new THREE.PlaneGeometry(1.5, 1.5),
-    new THREE.MeshBasicMaterial({ map: shadowTexture, transparent: true, opacity: 0.75, depthWrite: false }),
+    new THREE.PlaneGeometry(1.4, 1.4),
+    new THREE.MeshBasicMaterial({ map: shadowTexture, transparent: true, opacity: 0.7, depthWrite: false }),
   )
   shadow.rotation.x = -Math.PI / 2
   shadow.position.y = 0.02
   group.add(shadow)
-  // 腿 + 脚
-  const legMat = new THREE.MeshStandardMaterial({ color: 0x1c2733, roughness: 0.5, metalness: 0.5 })
-  for (const dx of [-0.17, 0.17]) {
-    const leg = new THREE.Mesh(new THREE.CapsuleGeometry(0.085, 0.34, 4, 10), legMat)
-    leg.position.set(dx, 0.42, 0)
-    group.add(leg)
-    const foot = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.08, 0.3), darkMat)
-    foot.position.set(dx, 0.06, 0.05)
-    group.add(foot)
-  }
 
-  // 身体
-  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.28, 0.5, 6, 18), bodyMat)
-  body.position.y = 1.02
-  body.scale.set(1, 1, 0.84)
-  group.add(body)
-
-  // 胸口面板 + 三条呼吸灯
-  const chest = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.22, 0.05), visorMat)
-  chest.position.set(0, 1.05, 0.27)
-  group.add(chest)
-  const bars = []
-  for (let i = 0; i < 3; i++) {
-    const bar = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.026, 0.02), eyeMat)
-    bar.position.set(0, 1.12 - i * 0.07, 0.303)
-    group.add(bar)
-    bars.push(bar)
-  }
-
-  // 肩甲
-  for (const dx of [-0.34, 0.34]) {
-    const pad = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 10), paleMat)
-    pad.position.set(dx, 1.24, 0)
-    pad.scale.set(1, 0.8, 1)
-    group.add(pad)
-  }
-
-  // 手臂
-  const armGeo = new THREE.CapsuleGeometry(0.07, 0.32, 4, 10)
-  const armL = new THREE.Mesh(armGeo, paleMat)
-  const armR = new THREE.Mesh(armGeo, paleMat)
-  const handL = new THREE.Mesh(new THREE.SphereGeometry(0.08, 10, 8), bodyMat)
-  const handR = new THREE.Mesh(new THREE.SphereGeometry(0.08, 10, 8), bodyMat)
-  armL.position.set(-0.4, 1.02, 0.02)
-  armL.rotation.z = 0.22
-  armR.position.set(0.4, 1.02, 0.02)
-  armR.rotation.z = -0.22
-  handL.position.set(-0.47, 0.82, 0.04)
-  handR.position.set(0.47, 0.82, 0.04)
-  group.add(armL, armR, handL, handR)
-
-  // 脖子 + 头（按 shape 变化）
-  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 0.14, 10), darkMat)
-  neck.position.y = 1.4
-  group.add(neck)
-  const headGroup = new THREE.Group()
-  headGroup.position.y = 1.7
-  headGroup.scale.setScalar(1.28)
-  group.add(headGroup)
-  const headGeos = {
-    cube: () => new THREE.BoxGeometry(0.46, 0.4, 0.42),
-    tri: () => new THREE.ConeGeometry(0.3, 0.44, 4),
-    hex: () => new THREE.CylinderGeometry(0.24, 0.28, 0.38, 6),
-    ghost: () => new THREE.SphereGeometry(0.28, 20, 16),
-    star: () => new THREE.OctahedronGeometry(0.3),
-    orb: () => new THREE.SphereGeometry(0.3, 22, 18),
-    pill: () => new THREE.CapsuleGeometry(0.22, 0.12, 4, 14),
-    drop: () => new THREE.SphereGeometry(0.27, 18, 14),
-    blob: () => new THREE.IcosahedronGeometry(0.3, 1),
-  }
-  const head = new THREE.Mesh((headGeos[agent.shape] ?? headGeos.cube)(), paleMat)
-  headGroup.add(head)
-
-  // 面罩 + 眼睛
-  const visor = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.14, 0.04), visorMat)
-  visor.position.set(0, 0.01, 0.26)
-  headGroup.add(visor)
-  const eyes = []
-  for (const dx of [-0.075, 0.075]) {
-    const eye = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.045, 0.02), eyeMat)
-    eye.position.set(dx, 0.015, 0.285)
-    headGroup.add(eye)
-    eyes.push(eye)
-  }
-
-  // 天线
-  const antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.3, 6), darkMat)
-  antenna.position.set(0.12, 0.4, -0.02)
-  antenna.rotation.z = -0.2
-  headGroup.add(antenna)
-  const antennaTip = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 8), eyeMat)
-  antennaTip.position.set(0.15, 0.56, -0.02)
-  headGroup.add(antennaTip)
-
-  // 形状配件
-  if (agent.shape === 'star' || agent.shape === 'orb') {
-    const halo = new THREE.Mesh(new THREE.TorusGeometry(0.38, 0.015, 8, 32), new THREE.MeshBasicMaterial({ color: accent, transparent: true, opacity: 0.55 }))
-    halo.rotation.x = Math.PI / 2
-    halo.position.y = 0.02
-    headGroup.add(halo)
-  }
-  if (agent.shape === 'ghost') {
-    const tail = new THREE.Mesh(new THREE.ConeGeometry(0.24, 0.3, 10, 1, true), paleMat)
-    tail.position.y = -0.3
-    tail.rotation.x = Math.PI
-    headGroup.add(tail)
-  }
-  if (agent.shape === 'drop') {
-    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.24, 12), paleMat)
-    tip.position.y = 0.32
-    headGroup.add(tip)
-  }
+  // 简单的立方体本体
+  const cubeMat = new THREE.MeshStandardMaterial({
+    color,
+    roughness: 0.4,
+    metalness: 0.25,
+    emissive: color,
+    emissiveIntensity: 0.18,
+  })
+  const cube = new THREE.Mesh(new THREE.BoxGeometry(size, size, size), cubeMat)
+  cube.position.y = baseY
+  cube.rotation.y = 0.5 + index * 0.45
+  group.add(cube)
 
   // 状态环
   const ring = new THREE.Mesh(
-    new THREE.RingGeometry(0.56, 0.63, 48),
+    new THREE.RingGeometry(0.58, 0.65, 40),
     new THREE.MeshBasicMaterial({ color: accent, transparent: true, opacity: 0.9, side: THREE.DoubleSide }),
   )
   ring.rotation.x = -Math.PI / 2
   ring.position.y = 0.03
   group.add(ring)
 
-  // 光晕
+  // 地面光晕
   const glow = new THREE.Sprite(new THREE.SpriteMaterial({
     map: glowTexture,
     color: accent,
     transparent: true,
-    opacity: 0.42,
+    opacity: 0.3,
     blending: THREE.AdditiveBlending,
     depthWrite: false,
   }))
-  glow.scale.set(2.1, 2.1, 1)
-  glow.position.y = 0.06
+  glow.scale.set(2.0, 2.0, 1)
+  glow.position.y = 0.05
   group.add(glow)
 
   // 名字标签
@@ -421,21 +315,22 @@ function robotFor(agent, index = 0) {
   })
   const label = new CSS2DObject(labelDiv)
   label.center.set(0.5, 1.15)
-  label.position.set(index % 2 === 0 ? -0.22 : 0.22, 2.52 + (index % 3) * 0.16, 0)
+  label.position.set(index % 2 === 0 ? -0.15 : 0.15, size + 0.72 + (index % 3) * 0.12, 0)
   group.add(label)
 
   // 命中体
   const hit = new THREE.Mesh(
-    new THREE.CylinderGeometry(1.0, 1.0, 2.5, 10),
+    new THREE.CylinderGeometry(0.95, 0.95, 1.7, 8),
     new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }),
   )
-  hit.position.y = 1.1
+  hit.position.y = 0.85
   hit.userData.agentId = agent.id
   group.add(hit)
 
   group.userData = {
     agentId: agent.id,
-    parts: { body, head, headGroup, armL, armR, handL, handR, bars, ring, glow, eyes, antennaTip, label, bodyMat, paleMat, darkMat, visorMat, eyeMat },
+    index,
+    parts: { cube, cubeMat, ring, glow, label, baseY },
   }
   return group
 }
@@ -793,8 +688,7 @@ function buildFloor(team, index, teamAgents) {
     const spot = spots[i]
     group.add(workstation(agent, spot))
     const robot = robotFor(agent, i)
-    robot.scale.setScalar(1.14)
-    robot.position.set(spot.x + 0.78, 0.02, spot.z + 1.34)
+    robot.position.set(spot.x + 1.0, 0.02, spot.z + 1.26)
     robot.userData.floorIndex = index
     group.add(robot)
     children.push({ agent, robot })
@@ -1177,30 +1071,25 @@ function tick() {
     robot.visible = visible
     if (!visible) continue
 
-    const phase = (id.charCodeAt(2) || 0) * 0.7
     const working = status === 'working'
-    const bob = Math.sin(t * (working ? 2.6 : 1.3) + phase) * (working ? 0.035 : 0.02)
-    robot.position.y = 0.02 + bob
-    parts.ring.rotation.z = status === 'stuck' ? t * 2.6 : 0
-    const ringPulse = working ? 1 + Math.sin(t * 3.4 + phase) * 0.08 : status === 'need_me' ? 1 + Math.sin(t * 5 + phase) * 0.1 : 1
-    parts.ring.scale.setScalar(ringPulse * (id === selectedId ? 1.24 : 1))
+    const phase = (id.charCodeAt(2) || 0) * 0.7
+    const bob = Math.sin(t * (working ? 2.4 : 1.1) + phase) * (working ? 0.045 : 0.018)
+    parts.cube.position.y = parts.baseY + bob
+    parts.cube.rotation.y = 0.5 + robot.userData.index * 0.45 + (working ? t * 0.9 : t * 0.12)
+    parts.cube.rotation.x = working ? Math.sin(t * 2 + phase) * 0.05 : 0
+    parts.cubeMat.emissiveIntensity = working ? 0.32 + Math.sin(t * 3.2 + phase) * 0.08
+      : status === 'stuck' ? 0.5 : status === 'need_me' ? 0.3 : 0.14
+
     const statusColor = STATUS[status]?.color ?? STATUS.resting.color
-    parts.glow.material.color.set(statusColor)
     parts.ring.material.color.set(statusColor)
-    parts.eyeMat.color.set(statusColor)
-    parts.antennaTip.material.color.set(statusColor)
-    parts.glow.material.opacity = working ? 0.42 + Math.sin(t * 3.4 + phase) * 0.12 : status === 'need_me' ? 0.4 : status === 'stuck' ? 0.36 : 0.16
-    if (working) {
-      parts.armL.rotation.x = Math.sin(t * 6 + phase) * 0.22
-      parts.armR.rotation.x = Math.sin(t * 6 + phase + 1.6) * 0.22
-      parts.bars.forEach((bar, i) => { bar.visible = Math.sin(t * 4 + i * 1.4 + phase) > -0.3 })
-    } else {
-      parts.armL.rotation.x = 0
-      parts.armR.rotation.x = 0
-      parts.bars.forEach(bar => { bar.visible = true })
-    }
-    parts.eyes.forEach(eye => { eye.scale.y = status === 'resting' ? 0.4 : 1 })
-    parts.headGroup.rotation.z = status === 'need_me' ? Math.sin(t * 3 + phase) * 0.08 : 0
+    parts.glow.material.color.set(statusColor)
+    parts.ring.rotation.z = status === 'stuck' ? t * 2.6 : 0
+    const ringPulse = working ? 1 + Math.sin(t * 3.4 + phase) * 0.08
+      : status === 'need_me' ? 1 + Math.sin(t * 5 + phase) * 0.1 : 1
+    parts.ring.scale.setScalar(ringPulse * (id === selectedId ? 1.24 : 1))
+    parts.glow.material.opacity = working ? 0.36 + Math.sin(t * 3.4 + phase) * 0.1
+      : status === 'need_me' ? 0.34 : status === 'stuck' ? 0.34 : 0.14
+
     const labelEl = parts.label.element
     if (labelEl) labelEl.classList.toggle('on', id === selectedId)
   }
