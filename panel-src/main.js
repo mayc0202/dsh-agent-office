@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js'
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js'
@@ -257,35 +258,103 @@ function disposeGroup(group) {
 function robotFor(agent, index = 0) {
   const group = new THREE.Group()
   const color = new THREE.Color(agent.color || '#3de1c6')
-  const accent = new THREE.Color((STATUS[agent.status] ?? STATUS.resting).color)
-  const size = 0.82
-  const baseY = 0.06 + size / 2
+  const status = STATUS[agent.status] ?? STATUS.resting
+  const accent = new THREE.Color(status.color)
+  const baseY = 0.86
+  const shape = agent.shape || 'cube'
+
+  const bodyMat = new THREE.MeshStandardMaterial({
+    color,
+    roughness: 0.55,
+    metalness: 0.06,
+    emissive: color,
+    emissiveIntensity: 0.14,
+  })
+  const darkMat = new THREE.MeshBasicMaterial({ color: 0x10141a })
 
   // 接触阴影
   const shadow = new THREE.Mesh(
-    new THREE.PlaneGeometry(1.4, 1.4),
-    new THREE.MeshBasicMaterial({ map: shadowTexture, transparent: true, opacity: 0.7, depthWrite: false }),
+    new THREE.PlaneGeometry(1.5, 1.5),
+    new THREE.MeshBasicMaterial({ map: shadowTexture, transparent: true, opacity: 0.62, depthWrite: false }),
   )
   shadow.rotation.x = -Math.PI / 2
   shadow.position.y = 0.02
   group.add(shadow)
 
-  // 简单的立方体本体
-  const cubeMat = new THREE.MeshStandardMaterial({
-    color,
-    roughness: 0.4,
-    metalness: 0.25,
-    emissive: color,
-    emissiveIntensity: 0.18,
-  })
-  const cube = new THREE.Mesh(new THREE.BoxGeometry(size, size, size), cubeMat)
-  cube.position.y = baseY
-  cube.rotation.y = 0.5 + index * 0.45
-  group.add(cube)
+  // 身体（按 shape 变化，参考原版的圆润小人）
+  const geos = {
+    cube: () => new RoundedBoxGeometry(0.92, 0.92, 0.92, 4, 0.17),
+    tri: () => new THREE.ConeGeometry(0.55, 1.0, 4, 1),
+    hex: () => new THREE.CylinderGeometry(0.44, 0.5, 0.9, 6),
+    ghost: () => new THREE.SphereGeometry(0.48, 28, 22),
+    star: () => new THREE.OctahedronGeometry(0.56),
+    orb: () => new THREE.SphereGeometry(0.5, 32, 24),
+    pill: () => new THREE.CapsuleGeometry(0.33, 0.4, 6, 20),
+    drop: () => new THREE.SphereGeometry(0.46, 24, 18),
+    blob: () => new THREE.IcosahedronGeometry(0.54, 2),
+  }
+  const body = new THREE.Mesh((geos[shape] ?? geos.cube)(), bodyMat)
+  if (shape === 'drop') body.scale.set(1, 1.18, 1)
+  if (shape === 'ghost') body.scale.set(1, 1.04, 1)
+  body.position.y = baseY
+  group.add(body)
+
+  // 形状配件
+  if (shape === 'ghost') {
+    const tail = new THREE.Mesh(new THREE.ConeGeometry(0.36, 0.34, 12, 1, true), bodyMat)
+    tail.position.y = baseY - 0.44
+    tail.rotation.x = Math.PI
+    group.add(tail)
+  }
+  if (shape === 'drop') {
+    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.26, 12), bodyMat)
+    tip.position.y = baseY + 0.56
+    group.add(tip)
+  }
+  if (shape === 'star' || shape === 'orb') {
+    const halo = new THREE.Mesh(new THREE.TorusGeometry(0.44, 0.016, 8, 36), new THREE.MeshBasicMaterial({ color: accent, transparent: true, opacity: 0.5 }))
+    halo.rotation.x = Math.PI / 2
+    halo.position.y = baseY + 0.04
+    group.add(halo)
+  }
+
+  // 眼睛（白色眼白 + 深色瞳孔，参考原版表情）
+  const front = { cube: 0.47, tri: 0.2, hex: 0.42, ghost: 0.46, star: 0.34, orb: 0.48, pill: 0.32, drop: 0.44, blob: 0.46 }[shape] ?? 0.46
+  const eyeY = baseY + (shape === 'tri' ? 0.04 : 0.07)
+  const eyes = []
+  const pupils = []
+  for (const dx of [-0.16, 0.16]) {
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.1, 16, 12), new THREE.MeshBasicMaterial({ color: 0xf7fbff }))
+    eye.position.set(dx, eyeY, front)
+    eye.scale.set(1, 1.12, 0.45)
+    group.add(eye)
+    eyes.push(eye)
+    const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.048, 12, 10), darkMat)
+    pupil.position.set(dx * 0.72, eyeY - 0.004, front + 0.045)
+    pupil.scale.set(1, 1.1, 0.4)
+    group.add(pupil)
+    pupils.push(pupil)
+  }
+
+  // 微笑
+  const mouth = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.012, 6, 14, Math.PI), darkMat)
+  mouth.position.set(0, eyeY - 0.16, front + 0.03)
+  mouth.rotation.z = Math.PI
+  mouth.scale.set(1, 0.8, 1)
+  group.add(mouth)
+
+  // 天线
+  const antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.34, 6), bodyMat)
+  antenna.position.set(0.12, baseY + 0.5, 0)
+  antenna.rotation.z = -0.18
+  group.add(antenna)
+  const tip = new THREE.Mesh(new THREE.SphereGeometry(0.06, 10, 8), new THREE.MeshBasicMaterial({ color: accent }))
+  tip.position.set(0.155, baseY + 0.68, 0)
+  group.add(tip)
 
   // 状态环
   const ring = new THREE.Mesh(
-    new THREE.RingGeometry(0.58, 0.65, 40),
+    new THREE.RingGeometry(0.6, 0.67, 44),
     new THREE.MeshBasicMaterial({ color: accent, transparent: true, opacity: 0.9, side: THREE.DoubleSide }),
   )
   ring.rotation.x = -Math.PI / 2
@@ -301,9 +370,28 @@ function robotFor(agent, index = 0) {
     blending: THREE.AdditiveBlending,
     depthWrite: false,
   }))
-  glow.scale.set(2.0, 2.0, 1)
+  glow.scale.set(2.1, 2.1, 1)
   glow.position.y = 0.05
   group.add(glow)
+
+  // 等待确认的感叹号
+  const badgeCanvas = document.createElement('canvas')
+  badgeCanvas.width = badgeCanvas.height = 128
+  const bctx = badgeCanvas.getContext('2d')
+  bctx.fillStyle = '#ffb86b'
+  bctx.beginPath(); bctx.arc(64, 64, 46, 0, Math.PI * 2); bctx.fill()
+  bctx.fillStyle = '#1a1208'
+  bctx.font = '900 64px Inter, system-ui, sans-serif'
+  bctx.textAlign = 'center'
+  bctx.textBaseline = 'middle'
+  bctx.fillText('!', 64, 68)
+  const badgeTexture = new THREE.CanvasTexture(badgeCanvas)
+  badgeTexture.colorSpace = THREE.SRGBColorSpace
+  const badge = new THREE.Sprite(new THREE.SpriteMaterial({ map: badgeTexture, transparent: true, depthWrite: false }))
+  badge.scale.set(0.42, 0.42, 1)
+  badge.position.y = baseY + 1.15
+  badge.visible = status === 'need_me'
+  group.add(badge)
 
   // 名字标签
   const labelDiv = document.createElement('div')
@@ -315,22 +403,22 @@ function robotFor(agent, index = 0) {
   })
   const label = new CSS2DObject(labelDiv)
   label.center.set(0.5, 1.15)
-  label.position.set(index % 2 === 0 ? -0.15 : 0.15, size + 0.72 + (index % 3) * 0.12, 0)
+  label.position.set(index % 2 === 0 ? -0.16 : 0.16, baseY + 0.88 + (index % 3) * 0.1, 0)
   group.add(label)
 
   // 命中体
   const hit = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.95, 0.95, 1.7, 8),
+    new THREE.CylinderGeometry(0.95, 0.95, 1.9, 8),
     new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }),
   )
-  hit.position.y = 0.85
+  hit.position.y = 0.95
   hit.userData.agentId = agent.id
   group.add(hit)
 
   group.userData = {
     agentId: agent.id,
     index,
-    parts: { cube, cubeMat, ring, glow, label, baseY },
+    parts: { body, bodyMat, eyes, pupils, tip, ring, glow, badge, label, baseY },
   }
   return group
 }
@@ -688,7 +776,8 @@ function buildFloor(team, index, teamAgents) {
     const spot = spots[i]
     group.add(workstation(agent, spot))
     const robot = robotFor(agent, i)
-    robot.position.set(spot.x + 1.0, 0.02, spot.z + 1.26)
+    robot.scale.setScalar(1.08)
+    robot.position.set(spot.x + 1.02, 0.02, spot.z + 1.28)
     robot.userData.floorIndex = index
     group.add(robot)
     children.push({ agent, robot })
@@ -1073,22 +1162,33 @@ function tick() {
 
     const working = status === 'working'
     const phase = (id.charCodeAt(2) || 0) * 0.7
-    const bob = Math.sin(t * (working ? 2.4 : 1.1) + phase) * (working ? 0.045 : 0.018)
-    parts.cube.position.y = parts.baseY + bob
-    parts.cube.rotation.y = 0.5 + robot.userData.index * 0.45 + (working ? t * 0.9 : t * 0.12)
-    parts.cube.rotation.x = working ? Math.sin(t * 2 + phase) * 0.05 : 0
-    parts.cubeMat.emissiveIntensity = working ? 0.32 + Math.sin(t * 3.2 + phase) * 0.08
-      : status === 'stuck' ? 0.5 : status === 'need_me' ? 0.3 : 0.14
+    const bob = Math.sin(t * (working ? 2.4 : 1.2) + phase) * (working ? 0.06 : 0.03)
+    parts.body.position.y = parts.baseY + bob
+    parts.body.rotation.y = Math.sin(t * 0.9 + phase) * 0.12
+    parts.body.rotation.x = working ? Math.sin(t * 2 + phase) * 0.04 : 0
+    parts.bodyMat.emissiveIntensity = working ? 0.26 + Math.sin(t * 3.2 + phase) * 0.06
+      : status === 'stuck' ? 0.4 : status === 'need_me' ? 0.24 : 0.12
 
     const statusColor = STATUS[status]?.color ?? STATUS.resting.color
     parts.ring.material.color.set(statusColor)
     parts.glow.material.color.set(statusColor)
+    parts.tip.material.color.set(statusColor)
     parts.ring.rotation.z = status === 'stuck' ? t * 2.6 : 0
     const ringPulse = working ? 1 + Math.sin(t * 3.4 + phase) * 0.08
       : status === 'need_me' ? 1 + Math.sin(t * 5 + phase) * 0.1 : 1
     parts.ring.scale.setScalar(ringPulse * (id === selectedId ? 1.24 : 1))
     parts.glow.material.opacity = working ? 0.36 + Math.sin(t * 3.4 + phase) * 0.1
       : status === 'need_me' ? 0.34 : status === 'stuck' ? 0.34 : 0.14
+
+    // 眨眼 / 休息半闭眼
+    const blinkCycle = (t + phase) % 3.6
+    const blink = status === 'resting' ? 0.32 : blinkCycle < 0.12 ? 0.12 : 1
+    parts.eyes.forEach(eye => { eye.scale.y = 1.12 * blink })
+    parts.pupils.forEach(pupil => { pupil.scale.y = 1.1 * blink })
+
+    // 天线/感叹号
+    parts.badge.visible = status === 'need_me'
+    if (parts.badge.visible) parts.badge.position.y = parts.baseY + 1.12 + Math.sin(t * 4 + phase) * 0.05
 
     const labelEl = parts.label.element
     if (labelEl) labelEl.classList.toggle('on', id === selectedId)
