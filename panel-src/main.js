@@ -1372,11 +1372,14 @@ function renderChecks() {
 }
 
 function renderMeter() {
-  $('#meterBig').innerHTML = `${fmt(usage.tokens_week || 0)}<small>tokens</small>`
-  $('#meterToday').textContent = fmt(usage.tokens_today || 0)
-  $('#meterSpan').textContent = usage.span ? usage.span.replace('（周一至今）', '') : '周一至今'
+  const headTokens = $('#headTokens')
+  const headBalance = $('#headBalance')
   const wake = agents.reduce((sum, agent) => sum + (Number(agent.runs_today) || 0), 0)
-  $('#meterWake').textContent = String(wake)
+  if (headTokens) {
+    headTokens.textContent = fmt(usage.tokens_week || 0)
+    headTokens.parentElement.title = `本周 ${fmt(usage.tokens_week || 0)} tokens · 今日 ${fmt(usage.tokens_today || 0)} · 每天唤醒 ${wake} 次`
+  }
+  if (headBalance) headBalance.parentElement.title = 'DeepSeek 平台余额'
 }
 
 function renderFeed() {
@@ -1711,31 +1714,26 @@ function toastEvent(agent, status, text) {
 }
 
 async function refreshBalance() {
-  const big = $('#balanceBig')
-  const bonus = $('#balanceBonus')
-  const state = $('#balanceState')
-  const updated = $('#balanceUpdated')
+  const headBalance = $('#headBalance')
   try {
     const response = await fetch('/night-shift/api/balance', { cache: 'no-store' })
     const data = await response.json()
+    if (!headBalance) return
     if (!data?.ok) {
-      if (big) big.textContent = '—'
-      if (bonus) bonus.textContent = '—'
-      if (state) state.textContent = '不可用'
-      if (updated) updated.textContent = data?.error ? String(data.error).slice(0, 28) : '读取失败'
+      headBalance.textContent = '—'
+      headBalance.parentElement.title = data?.error ? String(data.error) : '余额不可用'
       return
     }
     const symbol = data.currency === 'USD' ? '$' : '¥'
     const amount = Number.parseFloat(data.balance)
-    const bonusAmount = Number.parseFloat(data.bonus_balance || '0')
-    if (big) big.innerHTML = `${symbol}${Number.isFinite(amount) ? amount.toFixed(2) : '—'}<small>${data.currency}</small>`
-    if (bonus) bonus.textContent = `${symbol}${Number.isFinite(bonusAmount) ? bonusAmount.toFixed(2) : '0.00'}`
-    if (state) state.textContent = '实时'
-    if (updated) updated.textContent = '更新 ' + new Date(data.updated_at ?? Date.now()).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+    const bonus = Number.parseFloat(data.bonus_balance || '0')
+    headBalance.textContent = `${symbol}${Number.isFinite(amount) ? amount.toFixed(2) : '—'}`
+    headBalance.parentElement.title = `赠金 ${symbol}${Number.isFinite(bonus) ? bonus.toFixed(2) : '0.00'} · 更新 ${new Date(data.updated_at ?? Date.now()).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}`
   } catch {
-    if (big) big.textContent = '—'
-    if (state) state.textContent = '连接失败'
-    if (updated) updated.textContent = '稍后重试'
+    if (headBalance) {
+      headBalance.textContent = '—'
+      headBalance.parentElement.title = '余额连接失败'
+    }
   }
 }
 
