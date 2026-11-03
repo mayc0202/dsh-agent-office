@@ -46,7 +46,7 @@ const stage = $('#stage')
 const labelLayer = $('#labels')
 const scene = new THREE.Scene()
 scene.background = new THREE.Color(0x050a14)
-scene.fog = new THREE.FogExp2(0x050a14, 0.0062)
+scene.fog = new THREE.FogExp2(0x050a14, 0.0085)
 
 const aspectOf = () => stage.clientWidth / Math.max(1, stage.clientHeight)
 const camera = new THREE.PerspectiveCamera(36, aspectOf(), 0.1, 400)
@@ -116,76 +116,104 @@ const horizon = new THREE.Mesh(
 )
 horizon.rotation.x = -Math.PI / 2
 horizon.position.y = -1.55
+horizon.visible = false
 scene.add(horizon)
 
-/* 夜晚写字楼天际线 */
+/* 夜晚写字楼天际线（背景楼群） */
 const city = new THREE.Group()
 city.position.y = -1.55
 scene.add(city)
-const windowTexture = (() => {
+const makeWindowTexture = () => {
   const canvas = document.createElement('canvas')
-  canvas.width = 64
-  canvas.height = 128
+  canvas.width = 128
+  canvas.height = 256
   const ctx = canvas.getContext('2d')
-  ctx.fillStyle = '#000000'
-  ctx.fillRect(0, 0, 64, 128)
-  for (let y = 6; y < 124; y += 9) {
-    for (let x = 5; x < 59; x += 8) {
-      if (Math.random() > 0.34) {
+  ctx.fillStyle = '#04070d'
+  ctx.fillRect(0, 0, 128, 256)
+  for (let y = 5; y < 250; y += 9) {
+    for (let x = 5; x < 122; x += 9) {
+      if (Math.random() > 0.64) {
         const r = Math.random()
-        ctx.fillStyle = r > 0.82 ? 'rgba(255,205,150,.95)'
-          : r > 0.4 ? 'rgba(120,190,255,.95)' : 'rgba(90,230,255,.8)'
-        ctx.fillRect(x, y, 3.4, 5)
+        ctx.fillStyle = r > 0.86 ? 'rgba(255,214,160,.95)'
+          : r > 0.44 ? 'rgba(140,205,255,.95)' : 'rgba(95,235,255,.85)'
+        ctx.fillRect(x, y, 2.8, 4)
       }
     }
   }
   const texture = new THREE.CanvasTexture(canvas)
   texture.colorSpace = THREE.SRGBColorSpace
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping
+  texture.repeat.set(2.4, 3.2)
   return texture
-})()
-const cityPalette = [0x0a1a2e, 0x081524, 0x0c2038]
-const cityMats = cityPalette.map((emissive, i) => new THREE.MeshStandardMaterial({
-  color: 0x050b14,
-  roughness: 0.8,
-  metalness: 0.35,
-  emissive,
-  emissiveIntensity: 0.85 + i * 0.2,
-  emissiveMap: windowTexture,
+}
+const cityWindowTextures = [makeWindowTexture(), makeWindowTexture(), makeWindowTexture()]
+const cityMats = [0, 1, 2].map(i => new THREE.MeshBasicMaterial({
+  map: cityWindowTextures[i],
+  color: [0x7fa8c8, 0x7299bd, 0x8fb8d8][i],
 }))
 const cityBeacons = []
-for (let i = 0; i < 96; i++) {
-  const near = i < 56
+const cameraAzimuth = Math.atan2(0.95, 0.62)
+const angleDiff = (a, b) => {
+  let d = a - b
+  while (d > Math.PI) d -= Math.PI * 2
+  while (d < -Math.PI) d += Math.PI * 2
+  return Math.abs(d)
+}
+let placed = 0
+while (placed < 44) {
+  const band = placed < 16 ? 0 : placed < 32 ? 1 : 2
+  const radius = band === 0 ? 26 + Math.random() * 12
+    : band === 1 ? 42 + Math.random() * 18 : 66 + Math.random() * 28
   const angle = Math.random() * Math.PI * 2
-  const radius = near ? 15 + Math.random() * 20 : 36 + Math.random() * 36
-  const height = near ? 3 + Math.random() * 13 : 6 + Math.random() * 28
-  const width = 1.6 + Math.random() * 4.2
-  const depth = 1.6 + Math.random() * 4.2
-  const building = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), cityMats[i % 3])
+  if (band < 2 && angleDiff(angle, cameraAzimuth) < 0.55) continue
+  const height = band === 0 ? 6 + Math.random() * 12
+    : band === 1 ? 10 + Math.random() * 18 : 12 + Math.random() * 26
+  const width = band === 0 ? 3.6 + Math.random() * 4
+    : band === 1 ? 3.2 + Math.random() * 4.5 : 3 + Math.random() * 5.5
+  const depth = band === 0 ? 3.6 + Math.random() * 4
+    : band === 1 ? 3.2 + Math.random() * 4.5 : 3 + Math.random() * 5.5
+  const building = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), cityMats[placed % 3])
   building.position.set(Math.cos(angle) * radius, height / 2, Math.sin(angle) * radius)
   building.rotation.y = Math.random() * Math.PI
   city.add(building)
-  if (Math.random() < 0.4) {
-    const antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.9, 5), new THREE.MeshBasicMaterial({ color: 0x8fb4d8 }))
-    antenna.position.set(building.position.x, height + 0.45, building.position.z)
-    city.add(antenna)
-    const beaconColor = [0xff5a5a, 0x5be7ff, 0xffc46b][i % 3]
-    const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 8), new THREE.MeshBasicMaterial({ color: beaconColor, transparent: true, opacity: 0.8 }))
-    beacon.position.set(building.position.x, height + 0.95, building.position.z)
+  if (Math.random() < 0.5) {
+    const beaconColor = [0xff5a5a, 0x5be7ff, 0xffc46b][placed % 3]
+    const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), new THREE.MeshBasicMaterial({ color: beaconColor, transparent: true, opacity: 0.85 }))
+    beacon.position.set(building.position.x, height + 0.3, building.position.z)
     beacon.userData.baseColor = beacon.material.color.clone()
     beacon.userData.phase = Math.random() * Math.PI * 2
     city.add(beacon)
     cityBeacons.push(beacon)
   }
-  if (Math.random() < 0.28) {
-    const stripColor = [0x2f9fff, 0x5be7ff, 0xb18cff][i % 3]
-    const strip = new THREE.Mesh(new THREE.BoxGeometry(0.06, height * 0.72, 0.06), new THREE.MeshBasicMaterial({ color: stripColor, transparent: true, opacity: 0.7 }))
+  if (Math.random() < 0.45) {
+    const stripColor = [0x2f9fff, 0x5be7ff, 0xb18cff][placed % 3]
+    const strip = new THREE.Mesh(new THREE.BoxGeometry(0.07, height * 0.7, 0.07), new THREE.MeshBasicMaterial({ color: stripColor, transparent: true, opacity: 0.75 }))
     strip.position.set(building.position.x + Math.cos(angle + Math.PI / 2) * (width / 2 + 0.03), height * 0.5, building.position.z + Math.sin(angle + Math.PI / 2) * (depth / 2 + 0.03))
     city.add(strip)
   }
+  placed += 1
+}
+// 前景两侧的大楼，制造透视框景
+for (const side of [-1, 1]) {
+  const angle = cameraAzimuth + side * (0.95 + Math.random() * 0.25)
+  const radius = 28 + Math.random() * 8
+  const height = 12 + Math.random() * 14
+  const width = 4.5 + Math.random() * 2.5
+  const depth = 4 + Math.random() * 2.5
+  const building = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), cityMats[side > 0 ? 0 : 2])
+  building.position.set(Math.cos(angle) * radius, height / 2, Math.sin(angle) * radius)
+  building.rotation.y = Math.random() * Math.PI
+  city.add(building)
+  const beaconColor = side > 0 ? 0x5be7ff : 0xff5a5a
+  const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), new THREE.MeshBasicMaterial({ color: beaconColor, transparent: true, opacity: 0.9 }))
+  beacon.position.set(building.position.x, height + 0.3, building.position.z)
+  beacon.userData.baseColor = beacon.material.color.clone()
+  beacon.userData.phase = Math.random() * Math.PI * 2
+  city.add(beacon)
+  cityBeacons.push(beacon)
 }
 
-/* 星尘 *//* 星尘 *//* 星尘 */
+/* 星尘 *//* 星尘 *//* 星尘 *//* 星尘 */
 const dust = (() => {
   const count = 420
   const positions = new Float32Array(count * 3)
