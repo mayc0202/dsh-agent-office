@@ -968,28 +968,6 @@ function buildFloor(team, index, teamAgents) {
   }
   group.add(shelf)
 
-  // 沙发
-  const sofaMat = new THREE.MeshStandardMaterial({ color: 0x26323f, roughness: 0.9, metalness: 0.05 })
-  const sofa = new THREE.Group()
-  sofa.position.set(3.15, 0, 2.5)
-  const seat = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.34, 0.85), sofaMat)
-  seat.position.y = 0.28
-  sofa.add(seat)
-  const back = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.6, 0.18), sofaMat)
-  back.position.set(0, 0.62, -0.33)
-  sofa.add(back)
-  for (const dx of [-0.88, 0.88]) {
-    const arm = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.42, 0.85), sofaMat)
-    arm.position.set(dx, 0.46, 0)
-    sofa.add(arm)
-  }
-  for (const dx of [-0.45, 0.45]) {
-    const cushion = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.16, 0.66), new THREE.MeshStandardMaterial({ color: 0x3a4a5c, roughness: 0.9 }))
-    cushion.position.set(dx, 0.52, 0.04)
-    sofa.add(cushion)
-  }
-  group.add(sofa)
-
   // 咖啡吧
   const coffee = new THREE.Group()
   coffee.position.set(-3.4, 0, -2.65)
@@ -1047,37 +1025,6 @@ function buildFloor(team, index, teamAgents) {
       leaf.rotation.z = Math.cos(k * 2.1) * 0.2
       leaf.rotation.x = Math.sin(k * 2.1) * 0.2
       group.add(leaf)
-    }
-  }
-
-  // 会客区（座位没占满时）
-  if (teamAgents.length <= 6) {
-    const rug = new THREE.Mesh(
-      new THREE.PlaneGeometry(2.2, 1.5),
-      new THREE.MeshStandardMaterial({ color: 0x101a24, roughness: 0.95, metalness: 0.05 }),
-    )
-    rug.rotation.x = -Math.PI / 2
-    rug.position.set(-2.7, 0.018, 2.3)
-    group.add(rug)
-    const tableMat = new THREE.MeshStandardMaterial({ color: 0x1d2a38, roughness: 0.6, metalness: 0.35 })
-    const table = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.06, 24), tableMat)
-    table.position.set(-2.7, 0.55, 2.3)
-    group.add(table)
-    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.14, 0.7, 12), tableMat)
-    leg.position.set(-2.7, 0.27, 2.3)
-    group.add(leg)
-    const chairMat = new THREE.MeshStandardMaterial({ color: 0x1f2c3a, roughness: 0.7 })
-    for (let c = 0; c < 3; c++) {
-      const angle = (c / 3) * Math.PI * 2 + 0.5
-      const cx = -2.7 + Math.cos(angle) * 0.9
-      const cz = 2.3 + Math.sin(angle) * 0.9
-      const seat = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.06, 16), chairMat)
-      seat.position.set(cx, 0.38, cz)
-      group.add(seat)
-      const back = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.38, 0.05), chairMat)
-      back.position.set(cx + Math.cos(angle) * 0.18, 0.55, cz + Math.sin(angle) * 0.18)
-      back.rotation.y = -angle + Math.PI / 2
-      group.add(back)
     }
   }
 
