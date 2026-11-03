@@ -358,6 +358,8 @@ for (const [name, src] of Object.entries(FACE_SRC)) {
   texture.colorSpace = THREE.SRGBColorSpace
   faceTextures[name] = texture
 }
+const CUSTOM_FACE_KEY = 'night-shift-custom-face'
+let customFaceTexture = null
 const FACE_FOR_STATUS = {
   working: 'happy',
   need_me: 'surprised',
@@ -438,8 +440,8 @@ function robotFor(agent, index = 0, sitY = 0) {
 
   // 猫猫立绘：Sprite 永远面向相机（Grok Bot 那种平面感）
   const faceMat = new THREE.SpriteMaterial({
-    map: faceTextures[expr],
-    color: tint,
+    map: customFaceTexture ?? faceTextures[expr],
+    color: customFaceTexture ? 0xffffff : tint,
     transparent: true,
     depthWrite: false,
     toneMapped: false,
@@ -560,7 +562,7 @@ function robotFor(agent, index = 0, sitY = 0) {
   group.userData = {
     agentId: agent.id,
     index,
-    parts: { face, faceMat, ring, glow, badge, label, zzz, ripples, motion, seatShadow, shadow, baseY },
+    parts: { face, faceMat, ring, glow, badge, label, zzz, ripples, motion, seatShadow, shadow, tint, baseY },
   }
   return group
 }
@@ -1198,6 +1200,36 @@ let monitorScreens = []
 let lastMonitorDraw = 0
 const monitorState = new Map()
 const LOAD_WARN_MS = 5 * 60 * 1000
+
+function applyCustomFaceToAll() {
+  for (const [, entry] of agentsById) {
+    const parts = entry.robot?.userData?.parts
+    if (!parts?.faceMat) continue
+    const expr = FACE_FOR_STATUS[entry.agent.status ?? 'resting'] ?? 'default'
+    parts.faceMat.map = customFaceTexture ?? faceTextures[expr]
+    parts.faceMat.color.set(customFaceTexture ? 0xffffff : parts.tint ?? 0xffffff)
+    parts.faceMat.needsUpdate = true
+  }
+}
+
+function loadCustomFace() {
+  let data = ''
+  try { data = localStorage.getItem(CUSTOM_FACE_KEY) ?? '' } catch {}
+  if (!data) {
+    customFaceTexture = null
+    applyCustomFaceToAll()
+    return
+  }
+  faceLoader.load(data, texture => {
+    texture.colorSpace = THREE.SRGBColorSpace
+    customFaceTexture = texture
+    applyCustomFaceToAll()
+  })
+}
+
+window.addEventListener('storage', event => {
+  if (event.key === CUSTOM_FACE_KEY) loadCustomFace()
+})
 let usage = { tokens_week: 0, tokens_today: 0 }
 let selectedId = null
 let hoveredId = null
@@ -1600,9 +1632,21 @@ function tick() {
       parts.seatShadow.scale.set(sk, sk, 1)
     }
 
-    // 表情只随状态切换，不做随机闪烁
+    // 表情只随状态切换；有自定义猫咪图片时优先使用
     const expr = FACE_FOR_STATUS[status] ?? 'default'
-    if (parts.faceMat.map !== faceTextures[expr]) parts.faceMat.map = faceTextures[expr]
+    if (customFaceTexture) {
+      if (parts.faceMat.map !== customFaceTexture) {
+        parts.faceMat.map = customFaceTexture
+        parts.faceMat.needsUpdate = true
+      }
+      parts.faceMat.color.set(0xffffff)
+    } else {
+      if (parts.faceMat.map !== faceTextures[expr]) {
+        parts.faceMat.map = faceTextures[expr]
+        parts.faceMat.needsUpdate = true
+      }
+      parts.faceMat.color.copy(parts.tint)
+    }
 
     // 呼吸/浮动
     const breathe = sleeping ? 1 + Math.sin(t * 1.5 + phase) * 0.02 : 1 + Math.sin(t * 2.2 + phase) * 0.012
@@ -1806,6 +1850,7 @@ window.__NS = {
 rebuild([])
 $('#offline').classList.add('show')
 $('#offline').textContent = '正在读取本机会话…'
+loadCustomFace()
 poll()
 setInterval(poll, 2000)
 refreshBalance()
