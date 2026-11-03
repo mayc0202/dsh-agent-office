@@ -570,33 +570,31 @@ function workstation(agent, spot) {
   // 办公椅（猫猫坐在上面；靠最前缘的工位放不下就不放）
   const seatZ = spot.z + 1.32
   if (seatZ + 0.35 <= D / 2) {
-    const chairX = spot.x + 0.45
+    const chairX = spot.x + 0.35
     const chairMat = new THREE.MeshStandardMaterial({ color: 0x22303e, roughness: 0.82, metalness: 0.18 })
-    const padColor = color.clone().lerp(new THREE.Color(0x1a222c), 0.55)
-    const chairSeat = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.08, 0.78), chairMat)
+    const padColor = color.clone().lerp(new THREE.Color(0x1a222c), 0.68)
+    // 座椅朝办公桌：靠背在靠镜头这一侧，座面朝桌子
+    const chairSeat = new THREE.Mesh(new THREE.BoxGeometry(0.74, 0.08, 0.72), chairMat)
     chairSeat.position.set(chairX, 0.45, seatZ)
     group.add(chairSeat)
-    const cushion = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.06, 0.64), new THREE.MeshStandardMaterial({ color: padColor, roughness: 0.85 }))
+    const cushion = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.05, 0.6), new THREE.MeshStandardMaterial({ color: padColor, roughness: 0.85 }))
     cushion.position.set(chairX, 0.5, seatZ)
     group.add(cushion)
-    const chairBack = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.52, 0.07), chairMat)
-    chairBack.position.set(chairX, 0.73, seatZ - 0.34)
+    const chairBack = new THREE.Mesh(new THREE.BoxGeometry(0.74, 0.32, 0.06), chairMat)
+    chairBack.position.set(chairX, 0.63, seatZ + 0.33)
     group.add(chairBack)
-    const chairBackPad = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.38, 0.04), new THREE.MeshStandardMaterial({ color: padColor, roughness: 0.85 }))
-    chairBackPad.position.set(chairX, 0.76, seatZ - 0.3)
-    group.add(chairBackPad)
-    for (const dx of [-0.36, 0.36]) {
-      const arm = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.14, 0.7), chairMat)
-      arm.position.set(chairX + dx, 0.6, seatZ - 0.02)
-      group.add(arm)
-    }
-    for (const dx of [-0.32, 0.32]) {
-      for (const dz of [-0.3, 0.3]) {
-        const chairLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.45, 8), metalMat)
+    for (const dx of [-0.31, 0.31]) {
+      for (const dz of [-0.29, 0.29]) {
+        const chairLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.026, 0.45, 8), metalMat)
         chairLeg.position.set(chairX + dx, 0.225, seatZ + dz)
         group.add(chairLeg)
       }
     }
+    // 踏脚横杆（朝向桌子一侧）
+    const footrest = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.62, 8), metalMat)
+    footrest.rotation.z = Math.PI / 2
+    footrest.position.set(chairX, 0.28, seatZ - 0.26)
+    group.add(footrest)
   }
 
   const keyboard = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.02, 0.15), metalMat)
@@ -1004,9 +1002,9 @@ function buildFloor(team, index, teamAgents) {
     // 猫咪坐在工位前的办公椅上；靠前边缘放不下时退回工位右侧
     const chairZ = spot.z + 1.32
     const canSit = chairZ + 0.35 <= D / 2
-    const robot = robotFor(agent, i, canSit ? 0.5 : 0)
+    const robot = robotFor(agent, i, canSit ? 0.58 : 0)
     if (canSit) {
-      robot.position.set(spot.x + 0.45, 0.02, chairZ + 0.04)
+      robot.position.set(spot.x + 0.35, 0.02, chairZ + 0.05)
     } else {
       const catHalf = 0.4
       const catX = clamp(spot.x + 1.375, -W / 2 + catHalf + 0.05, W / 2 - catHalf - 0.05)
