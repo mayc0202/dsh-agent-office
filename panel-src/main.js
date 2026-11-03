@@ -757,11 +757,6 @@ function buildFloor(team, index, teamAgents) {
   )
   wall.position.set(0, 1.57, -D / 2 + 0.1)
   group.add(wall)
-  for (let mx = -W / 2 + 1; mx < W / 2; mx += 1.5) {
-    const seam = new THREE.Mesh(new THREE.BoxGeometry(0.025, 2.9, 0.02), new THREE.MeshBasicMaterial({ color: 0x2a4a6a, transparent: true, opacity: 0.3 }))
-    seam.position.set(mx, 1.57, -D / 2 + 0.25)
-    group.add(seam)
-  }
   const ledBand = new THREE.Mesh(new THREE.BoxGeometry(W - 0.6, 0.035, 0.02), new THREE.MeshBasicMaterial({ color: teamColor, transparent: true, opacity: 0.95 }))
   ledBand.position.set(0, 2.82, -D / 2 + 0.25)
   group.add(ledBand)
