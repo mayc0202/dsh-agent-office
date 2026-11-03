@@ -8,14 +8,19 @@ import { readFileSync } from 'node:fs'
 import { createNightShiftStore } from '../lib/state.js'
 
 const port = Number(process.env.PORT ?? 8899)
-const panel = readFileSync(new URL('../lib/panel.html', import.meta.url), 'utf8')
 const store = createNightShiftStore({})
 
 const server = createServer((req, res) => {
   const path = new URL(req.url ?? '/', 'http://dev.local').pathname
   if (path === '/night-shift' || path === '/night-shift/') {
-    res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' })
-    res.end(panel)
+    try {
+      const panel = readFileSync(new URL('../lib/panel.html', import.meta.url), 'utf8')
+      res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' })
+      res.end(panel)
+    } catch (error) {
+      res.writeHead(500, { 'content-type': 'text/plain; charset=utf-8' })
+      res.end(String(error))
+    }
     return
   }
   if (path === '/night-shift/api/state') {

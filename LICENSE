@@ -20,8 +20,5 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
----
-
-注意：本许可证只覆盖本仓库作者编写的插件代码（lib/index.js、lib/state.js、
-lib/client.js、dev/、构建与文档）。lib/panel.html 是在第三方演示页面基础上
-修改而来，其原始版权归原作者所有，不在本许可证授权范围内。详见 NOTICE。
+本仓库打包进 lib/panel.html 的 Three.js 代码按其自身 MIT 许可分发，版权归
+three.js authors，详见 NOTICE。
