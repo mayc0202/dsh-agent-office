@@ -347,7 +347,7 @@ function robotFor(agent, index = 0, sitY = 0) {
 
   // 接触阴影
   const shadow = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.9, 0.9),
+    new THREE.PlaneGeometry(0.75, 0.75),
     new THREE.MeshBasicMaterial({ map: shadowTexture, transparent: true, opacity: 0.62, depthWrite: false }),
   )
   shadow.rotation.x = -Math.PI / 2
@@ -363,13 +363,13 @@ function robotFor(agent, index = 0, sitY = 0) {
     toneMapped: false,
   })
   const face = new THREE.Sprite(faceMat)
-  face.scale.set(0.75, 0.75, 1)
+  face.scale.set(0.6, 0.6, 1)
   face.position.y = baseY
   group.add(face)
 
   // 状态环 + 地面光晕
   const ring = new THREE.Mesh(
-    new THREE.RingGeometry(0.3, 0.34, 44),
+    new THREE.RingGeometry(0.24, 0.28, 44),
     new THREE.MeshBasicMaterial({ color: accent, transparent: true, opacity: 0.9, side: THREE.DoubleSide }),
   )
   ring.rotation.x = -Math.PI / 2
@@ -379,7 +379,7 @@ function robotFor(agent, index = 0, sitY = 0) {
     map: glowTexture, color: accent, transparent: true, opacity: 0.3,
     blending: THREE.AdditiveBlending, depthWrite: false,
   }))
-  glow.scale.set(0.95, 0.95, 1)
+  glow.scale.set(0.8, 0.8, 1)
   glow.position.y = 0.05
   group.add(glow)
 
@@ -431,10 +431,10 @@ function robotFor(agent, index = 0, sitY = 0) {
 
   // 命中体
   const hit = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.46, 0.46, 0.95, 8),
+    new THREE.CylinderGeometry(0.38, 0.38, 0.8, 8),
     new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }),
   )
-  hit.position.y = 0.45
+  hit.position.y = 0.38
   hit.userData.agentId = agent.id
   group.add(hit)
 
@@ -510,7 +510,7 @@ function workstation(agent, spot) {
   deskEdge.position.set(spot.x, 0.515, spot.z + 0.93)
   group.add(deskEdge)
   for (const dx of [-0.72, 0.72]) {
-    for (const dz of [-0.26, 0.26]) {
+    for (const dz of [-0.24, 0.24]) {
       const leg = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.55, 0.06), metalMat)
       leg.position.set(spot.x + dx, 0.28, spot.z + 0.55 + dz)
       group.add(leg)
@@ -548,23 +548,23 @@ function workstation(agent, spot) {
   group.add(foot)
 
   // 办公椅（猫猫坐在上面；靠最前缘的工位放不下就不放）
-  const seatZ = spot.z + 1.32
+  const seatZ = spot.z + 1.55
   if (seatZ + 0.35 <= D / 2) {
-    const chairX = spot.x + 0.35
+    const chairX = spot.x + 0.2
     const chairMat = new THREE.MeshStandardMaterial({ color: 0x2a3a4c, roughness: 0.78, metalness: 0.2 })
     const padColor = color.clone().lerp(new THREE.Color(0x1a222c), 0.68)
     // 座椅朝办公桌：靠背在靠镜头这一侧，座面朝桌子
-    const chairSeat = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.08, 0.7), chairMat)
+    const chairSeat = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.08, 0.62), chairMat)
     chairSeat.position.set(chairX, 0.45, seatZ)
     group.add(chairSeat)
-    const cushion = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.05, 0.58), new THREE.MeshStandardMaterial({ color: padColor, roughness: 0.85 }))
+    const cushion = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.05, 0.5), new THREE.MeshStandardMaterial({ color: padColor, roughness: 0.85 }))
     cushion.position.set(chairX, 0.5, seatZ)
     group.add(cushion)
-    const chairBack = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.28, 0.06), chairMat)
+    const chairBack = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.26, 0.06), chairMat)
     chairBack.position.set(chairX, 0.63, seatZ + 0.33)
     group.add(chairBack)
-    for (const dx of [-0.28, 0.28]) {
-      for (const dz of [-0.26, 0.26]) {
+    for (const dx of [-0.26, 0.26]) {
+      for (const dz of [-0.24, 0.24]) {
         const chairLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.026, 0.45, 8), metalMat)
         chairLeg.position.set(chairX + dx, 0.225, seatZ + dz)
         group.add(chairLeg)
@@ -1035,11 +1035,11 @@ function buildFloor(team, index, teamAgents) {
     ws.scale.setScalar(1.15)
     group.add(ws)
     // 猫咪坐在工位前的办公椅上；靠前边缘放不下时退回工位右侧
-    const chairZ = spot.z + 1.32
+    const chairZ = spot.z + 1.55
     const canSit = chairZ + 0.35 <= D / 2
-    const robot = robotFor(agent, i, canSit ? 0.5 : 0)
+    const robot = robotFor(agent, i, canSit ? 0.425 : 0)
     if (canSit) {
-      robot.position.set(spot.x + 0.35, 0.02, chairZ)
+      robot.position.set(spot.x + 0.2, 0.02, chairZ)
     } else {
       const catHalf = 0.4
       const catX = clamp(spot.x + 1.375, -W / 2 + catHalf + 0.05, W / 2 - catHalf - 0.05)
@@ -1444,7 +1444,7 @@ function tick() {
 
     // 呼吸/浮动
     const breathe = sleeping ? 1 + Math.sin(t * 1.5 + phase) * 0.02 : 1 + Math.sin(t * 2.2 + phase) * 0.012
-    parts.face.scale.set(0.75 * breathe, 0.75 * breathe, 1)
+    parts.face.scale.set(0.6 * breathe, 0.6 * breathe, 1)
 
     const statusColor = STATUS[status]?.color ?? STATUS.resting.color
     parts.ring.material.color.set(statusColor)
