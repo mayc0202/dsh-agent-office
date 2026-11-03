@@ -1199,7 +1199,10 @@ function selectAgent(id, moveCamera = false) {
     const world = new THREE.Vector3()
     entry.robot.getWorldPosition(world)
     targetGoal = world.clone().add(new THREE.Vector3(0, 1.0, 0))
-    cameraGoal = targetGoal.clone().add(CAM_DIR.clone().multiplyScalar(13))
+    // 保持当前镜头距离与朝向，只平移到该 Agent，避免点选时突然拉近
+    const viewOffset = new THREE.Vector3().subVectors(camera.position, controls.target)
+    if (viewOffset.length() < 4) viewOffset.copy(CAM_DIR).multiplyScalar(18)
+    cameraGoal = targetGoal.clone().add(viewOffset)
   }
 }
 
