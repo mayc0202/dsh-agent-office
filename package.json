@@ -1,7 +1,7 @@
 {
   "name": "dsh-agent-office",
-  "version": "4.1.4",
-  "description": "智能体办公室：把 DeepSeek Harness 会话变成实时 3D 办公室（本地插件版，无外部服务）。",
+  "version": "4.1.5",
+  "description": "实时 3D 办公室可视化 DSH 会话；Catora 发布后将抽离为 MCP 服务，提供笔记、思维导图、私人知识库与 RAG 检索。",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
@@ -45,7 +45,11 @@
     "3d",
     "office",
     "deepseek-harness",
-    "catora"
+    "catora",
+    "mcp",
+    "rag",
+    "notes",
+    "mindmap"
   ],
   "license": "MIT",
   "engines": {
