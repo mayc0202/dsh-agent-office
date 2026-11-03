@@ -1032,7 +1032,6 @@ function buildFloor(team, index, teamAgents) {
   teamAgents.forEach((agent, i) => {
     const spot = spots[i]
     const ws = workstation(agent, spot)
-    ws.scale.setScalar(1.15)
     group.add(ws)
     // 猫咪坐在工位前的办公椅上；靠前边缘放不下时退回工位右侧
     const chairZ = spot.z + 1.55
