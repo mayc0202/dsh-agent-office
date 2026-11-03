@@ -944,7 +944,7 @@ function buildFloor(team, index, teamAgents) {
 
   // 彩色货架（参考原版的彩色格子）
   const shelf = new THREE.Group()
-  shelf.position.set(-W / 2 + 0.22, 0, -0.4)
+  shelf.position.set(-W / 2 + 0.52, 0, -0.4)
   shelf.rotation.y = Math.PI / 2
   const shelfMat = new THREE.MeshStandardMaterial({ color: 0x1b2430, roughness: 0.7, metalness: 0.3 })
   for (const y of [0.5, 1.15, 1.8]) {
@@ -1012,21 +1012,7 @@ function buildFloor(team, index, teamAgents) {
   neonB.position.set(-W / 2 + 0.3, 1.3, D / 2 - 0.3)
   group.add(neonB)
 
-  // 绿植
-  const potMat = new THREE.MeshStandardMaterial({ color: 0x1a2129, roughness: 0.85 })
-  const leafMat = new THREE.MeshStandardMaterial({ color: 0x1f6149, roughness: 0.7, emissive: 0x0a2318, emissiveIntensity: 0.5 })
-  for (const [x, z] of [[-W / 2 + 1.2, D / 2 - 1.3], [W / 2 - 1.3, D / 2 - 1.5]]) {
-    const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.18, 0.28, 12), potMat)
-    pot.position.set(x, 0.14, z)
-    group.add(pot)
-    for (let k = 0; k < 3; k++) {
-      const leaf = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.5 + k * 0.1, 7), leafMat)
-      leaf.position.set(x + Math.cos(k * 2.1) * 0.12, 0.4 + k * 0.08, z + Math.sin(k * 2.1) * 0.12)
-      leaf.rotation.z = Math.cos(k * 2.1) * 0.2
-      leaf.rotation.x = Math.sin(k * 2.1) * 0.2
-      group.add(leaf)
-    }
-  }
+
 
   // 工位
   const spots = floorSpots(teamAgents.length)
