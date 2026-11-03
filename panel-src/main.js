@@ -447,53 +447,90 @@ function robotFor(agent, index = 0, sitY = 0) {
 }
 
 /* 显示器内容 */
-function monitorTexture(agent) {
-  const canvas = document.createElement('canvas')
-  canvas.width = 512
-  canvas.height = 300
-  const ctx = canvas.getContext('2d')
-  ctx.fillStyle = '#0d2233'
-  ctx.fillRect(0, 0, 512, 300)
-  ctx.fillStyle = 'rgba(255,255,255,.05)'
-  ctx.fillRect(0, 0, 512, 40)
-  ctx.fillStyle = agent.color || '#3de1c6'
-  ctx.beginPath(); ctx.arc(26, 20, 6, 0, Math.PI * 2); ctx.fill()
-  ctx.fillStyle = 'rgba(240,246,252,.95)'
-  ctx.font = '600 19px ui-monospace, Menlo, monospace'
-  ctx.fillText('SESSION', 44, 26)
-  ctx.fillStyle = 'rgba(170,195,220,.9)'
-  ctx.font = '500 15px ui-monospace, Menlo, monospace'
-  ctx.fillText('LIVE', 436, 26)
-  const lineColor = agent.color || '#3de1c6'
-  for (let i = 0; i < 7; i++) {
-    const y = 66 + i * 26
-    const w = 90 + ((i * 53) % 250)
-    ctx.fillStyle = 'rgba(160,200,235,.42)'
-    ctx.fillRect(22, y, w, 9)
-    ctx.fillStyle = i % 3 === 0 ? lineColor : 'rgba(160,200,235,.42)'
-    ctx.fillRect(22, y, 30, 9)
+function drawMonitorScreen(entry, status, overload) {
+  const { canvas, ctx, texture, color } = entry
+  const w = canvas.width
+  const h = canvas.height
+  const now = Date.now()
+  ctx.clearRect(0, 0, w, h)
+  if (status === 'resting' || status === 'done') {
+    // 黑屏 / 关机待机
+    ctx.fillStyle = '#010306'
+    ctx.fillRect(0, 0, w, h)
+    ctx.fillStyle = 'rgba(110,150,180,.16)'
+    ctx.font = '500 13px ui-monospace, Menlo, monospace'
+    ctx.fillText('STANDBY', 24, h - 20)
+    ctx.fillStyle = (Math.floor(now / 1200) % 2) ? 'rgba(90,220,150,.5)' : 'rgba(90,220,150,.12)'
+    ctx.beginPath(); ctx.arc(w - 26, h - 22, 4, 0, Math.PI * 2); ctx.fill()
+    texture.needsUpdate = true
+    return
   }
-  ctx.strokeStyle = lineColor
-  ctx.lineWidth = 2.5
-  ctx.globalAlpha = 0.8
-  ctx.beginPath()
-  for (let x = 0; x < 190; x += 10) {
-    const y = 250 - Math.sin(x * 0.09 + 1.2) * 14 - Math.random() * 6
-    if (x === 0) ctx.moveTo(300 + x, y)
-    else ctx.lineTo(300 + x, y)
+  const warn = overload || status === 'stuck'
+  if (warn) {
+    ctx.fillStyle = '#2a070b'
+    ctx.fillRect(0, 0, w, h)
+    ctx.strokeStyle = '#ff5a5a'
+    ctx.lineWidth = 6
+    ctx.strokeRect(4, 4, w - 8, h - 8)
+    ctx.fillStyle = '#ff9a9a'
+    ctx.font = '700 30px Inter, ui-monospace, Menlo, monospace'
+    ctx.fillText('⚠ HIGH LOAD', 28, 54)
+    ctx.fillStyle = 'rgba(255,160,160,.85)'
+    ctx.font = '500 19px ui-monospace, Menlo, monospace'
+    ctx.fillText('执行任务时间过长', 28, 92)
+    for (let i = 0; i < 5; i++) {
+      const bw = 60 + ((i * 71) % 320)
+      ctx.fillStyle = i % 2 === 0 ? 'rgba(255,90,90,.85)' : 'rgba(255,60,60,.45)'
+      ctx.fillRect(28, 122 + i * 24, bw, 10)
+    }
+    ctx.fillStyle = (Math.floor(now / 450) % 2) ? '#ffd2d2' : 'rgba(255,210,210,.25)'
+    ctx.font = '700 18px ui-monospace, Menlo, monospace'
+    ctx.fillText('PLEASE CHECK TASK', 28, h - 22)
+    texture.needsUpdate = true
+    return
   }
-  ctx.stroke()
-  ctx.globalAlpha = 1
-  ctx.fillStyle = 'rgba(138,148,163,.7)'
+  // 代码编辑器
+  ctx.fillStyle = '#0a1520'
+  ctx.fillRect(0, 0, w, h)
+  ctx.fillStyle = 'rgba(255,255,255,.055)'
+  ctx.fillRect(0, 0, w, 34)
+  for (const [i, dot] of ['#ff5f56', '#ffbd2e', '#27c93f'].entries()) {
+    ctx.fillStyle = dot
+    ctx.beginPath(); ctx.arc(18 + i * 16, 17, 4.5, 0, Math.PI * 2); ctx.fill()
+  }
+  ctx.fillStyle = 'rgba(233,240,248,.8)'
+  ctx.font = '600 13px ui-monospace, Menlo, monospace'
+  ctx.fillText('agent.js — ' + (status === 'working' ? 'WORKING' : 'PAUSED'), 74, 22)
+  ctx.fillStyle = color
+  ctx.fillText('●', w - 40, 22)
+  const rows = 7
+  const scroll = Math.floor(now / 1600) % 20
+  const palette = ['rgba(120,170,255,.9)', 'rgba(150,220,160,.9)', 'rgba(255,205,130,.9)', 'rgba(200,150,255,.9)', 'rgba(160,200,235,.45)']
+  for (let i = 0; i < rows; i++) {
+    const y = 58 + i * 30
+    ctx.fillStyle = 'rgba(120,150,180,.35)'
+    ctx.font = '500 12px ui-monospace, Menlo, monospace'
+    ctx.fillText(String((i + scroll) % 99).padStart(2, ' '), 14, y + 10)
+    const indent = 28 + ((i * 3) % 4) * 14
+    let x = indent
+    const segs = 2 + ((i + scroll) % 3)
+    for (let k = 0; k < segs; k++) {
+      const segW = 26 + ((i * 43 + k * 67 + scroll * 11) % 120)
+      ctx.fillStyle = palette[(i + k + scroll) % palette.length]
+      ctx.fillRect(x, y, segW, 9)
+      x += segW + 8
+    }
+    if (i === 3 && Math.floor(now / 500) % 2 === 0) {
+      ctx.fillStyle = 'rgba(120,220,255,.9)'
+      ctx.fillRect(indent + 6, y + 14, 2, 12)
+    }
+  }
+  ctx.fillStyle = 'rgba(120,150,180,.4)'
   ctx.font = '500 12px ui-monospace, Menlo, monospace'
-  ctx.fillText('TOKENS', 300, 286)
-  const texture = new THREE.CanvasTexture(canvas)
-  texture.colorSpace = THREE.SRGBColorSpace
-  texture.anisotropy = 4
-  return texture
+  ctx.fillText('Ln ' + (3 + scroll) + ', Col 18   UTF-8   LF', 14, h - 14)
+  texture.needsUpdate = true
 }
 
-/* 工位 */
 function workstation(agent, spot) {
   const group = new THREE.Group()
   const color = new THREE.Color(agent.color || '#3de1c6')
@@ -525,9 +562,16 @@ function workstation(agent, spot) {
   frame.position.set(monitorX, 0.92, monitorZ)
   frame.rotation.y = tilt
   group.add(frame)
+  const monitorCanvas = document.createElement('canvas')
+  monitorCanvas.width = 512
+  monitorCanvas.height = 300
+  const monitorCtx = monitorCanvas.getContext('2d')
+  const monitorTexture = new THREE.CanvasTexture(monitorCanvas)
+  monitorTexture.colorSpace = THREE.SRGBColorSpace
+  monitorTexture.anisotropy = 4
   const screen = new THREE.Mesh(
     new THREE.PlaneGeometry(0.82, 0.48),
-    new THREE.MeshBasicMaterial({ map: monitorTexture(agent), toneMapped: false }),
+    new THREE.MeshBasicMaterial({ map: monitorTexture, toneMapped: false }),
   )
   screen.position.set(monitorX + 0.01, 0.92, monitorZ + 0.035)
   screen.rotation.y = tilt
@@ -540,6 +584,16 @@ function workstation(agent, spot) {
   screenGlow.position.set(monitorX + 0.005, 0.92, monitorZ + 0.015)
   screenGlow.rotation.y = tilt
   group.add(screenGlow)
+  const monitorEntry = {
+    canvas: monitorCanvas,
+    ctx: monitorCtx,
+    texture: monitorTexture,
+    glow: screenGlow,
+    agentId: agent.id,
+    color: agent.color || '#3de1c6',
+  }
+  monitorScreens.push(monitorEntry)
+  drawMonitorScreen(monitorEntry, agent.status ?? 'resting', false)
   const stand = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.22, 8), metalMat)
   stand.position.set(monitorX, 0.7, monitorZ - 0.02)
   group.add(stand)
@@ -1058,6 +1112,10 @@ function buildFloor(team, index, teamAgents) {
 let floors = []
 let agents = []
 let tokenBoards = []
+let monitorScreens = []
+let lastMonitorDraw = 0
+const monitorState = new Map()
+const LOAD_WARN_MS = 5 * 60 * 1000
 let usage = { tokens_week: 0, tokens_today: 0 }
 let selectedId = null
 let hoveredId = null
@@ -1304,6 +1362,7 @@ function rebuild(list) {
   scene.add(tower)
   floors = []
   tokenBoards = []
+  monitorScreens = []
   agentsById = new Map()
   const teams = teamList(list)
   teams.forEach((team, index) => {
@@ -1476,6 +1535,28 @@ function tick() {
       // 严格对齐时下层被上层挡住，全局视角只显示顶层标签（聚焦时正常显示当前层）
       parts.label.visible = visible && (focusFloor !== null || agent.team === topTeam)
       labelEl.classList.toggle('on', id === selectedId)
+    }
+  }
+
+  // 显示器：工作=代码 / 休息=黑屏 / 超时=红色负载
+  const nowMs = Date.now()
+  if (nowMs - lastMonitorDraw > 420) {
+    lastMonitorDraw = nowMs
+    for (const entry of monitorScreens) {
+      const agent = agentsById.get(entry.agentId)?.agent
+      if (!agent) continue
+      const status = agent.status ?? 'resting'
+      const state = monitorState.get(entry.agentId) ?? { status: 'resting', since: nowMs }
+      if (state.status !== status) {
+        state.status = status
+        state.since = nowMs
+      }
+      monitorState.set(entry.agentId, state)
+      const overload = status === 'working' && nowMs - state.since > LOAD_WARN_MS
+      drawMonitorScreen(entry, status, overload)
+      const glowColor = overload || status === 'stuck' ? '#ff5a5a' : status === 'resting' || status === 'done' ? '#16202a' : entry.color
+      entry.glow.material.color.set(glowColor)
+      entry.glow.material.opacity = overload ? 0.42 : status === 'resting' || status === 'done' ? 0.05 : 0.2
     }
   }
 
