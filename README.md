@@ -1,18 +1,20 @@
 # Night Shift · DSH 插件版
 
-把 DeepSeek Harness 的所有会话变成一间实时 3D 办公室：右下角一个「夜班」按钮，点开就是全屏面板。
-面板视觉复刻 Night Shift 原版演示页（配色、楼层、工位、Agent 小人、状态动画），数据全部来自本机会话日志，
-**插件版不依赖 ntfy、不需要常驻外部进程**。
+把 DeepSeek Harness 的全部会话变成一间实时 3D 办公室：右下角一个「夜班」按钮，点开就是全屏面板。
+3D 场景用 **Three.js** 自绘（楼层、工位、Agent 小人、霓虹灯牌、动态状态动画），不依赖第三方页面模板，也不依赖 ntfy 或常驻外部进程。
 
 ![全局视角](screenshot.png)
 
-![楼层视角](screenshot-focus.png)
+![单层聚焦](screenshot-focus.png)
 
 ## 特性
 
-- 🏢 **3D 办公室**：楼层、工位、显示器、绿植、服务器、灯牌；每个会话是一个 Agent 小人，按状态做动画；
-- 🖱️ **楼层视角**：点 3D 楼层或左侧「楼层」列表 → 镜头切到该层，其他楼层淡出，只看这一层；
-- 📡 **真实数据**：状态（工作中 / 等待中 / 卡住 / 已完成 / 待机）、今日执行次数、本周/今日 Token 全部来自本机会话日志，不编造；
+- 🎨 **暖色调 3D 办公室**：木色工位、橙色霓虹、玻璃护栏、吊灯与远景夜景，贴近原版 Night Shift 的氛围；
+
+- 🏢 **3D 实时办公室**：Three.js 自绘的错层办公室——每层有工位、显示器、会议桌、白板、服务器机柜、玻璃护栏和吊灯；每个会话是一个简洁的立方体 Agent（按状态做呼吸/浮动脉冲，工作/等待/卡住/待机各有反馈）；
+- 🖱️ **楼层聚焦**：左键点任意楼层（或左侧楼层列表）→ 只显示并看清这一层；右键 /「全局视角」按钮 / `Esc` 回到整栋楼的全局视角；
+- 📡 **真实数据**：状态、今日执行次数、本周/今日 **Token 用量** 全部来自本机会话日志，数字不编造；
+- 🖱️ **可交互**：拖动旋转、滚轮缩放、点击立方体或名字看详情、详情卡 ×/Esc 关闭；
 - 🧩 **原生插件**：bundle 插件，装完即用（宿主路由 + 浏览器半侧悬浮按钮），无外部依赖；
 - 🔒 **只读本机**：只读 `$DSH_HOME/sessions`，不联网、不上传，没有频道名/密钥要配。
 
@@ -51,6 +53,7 @@ git clone https://github.com/mayc0202/dsh-night-shift
 ## 先预览（不安装）
 
 ```bash
+npm install          # 安装 three / esbuild（仅构建/预览需要）
 node dev/dev-server.mjs
 # 打开 http://127.0.0.1:8899/night-shift/
 ```
@@ -66,7 +69,8 @@ node dev/dev-server.mjs
 | 宿主 | `lib/index.js` | 在 DSH 的 Web 服务器上挂 `GET /night-shift/`（页面）和 `GET /night-shift/api/state`（数据） |
 | 数据 | `lib/state.js` | 读 `~/.dsh/sessions/<workspace>/<session>/session.v4.jsonl.zstd`（多帧 zstd 逐帧解压，按 mtime 缓存）；从 `turn/start|end`、`tool/call`、`assistant/message.usage`、`approval/asked|decided`、`ask_user_question` 推导状态与用量 |
 | 客户端 | `lib/client.js` | 右下角「夜班」悬浮按钮 + 全屏 iframe 覆盖层，可「在新标签打开」 |
-| 面板 | `lib/panel.html` | 单文件页面；同源轮询 `/night-shift/api/state`，在页面内绘制 3D 办公室 |
+| 3D 页面 | `lib/panel.html` | 单文件构建产物（Three.js 场景 + HUD），同源轮询 API |
+| 页面源码 | `panel-src/` + `panel/build.mjs` | 可读源码 + esbuild 打包脚本 |
 
 数据口径：
 
@@ -90,24 +94,42 @@ node dev/dev-server.mjs
         sessionsDir: null       # 默认 $DSH_HOME/sessions
 ```
 
+## 开发构建
+
+```bash
+npm install
+node panel/build.mjs     # panel-src/ → lib/panel.html（单文件）
+node dev/dev-server.mjs  # 本地预览
+node --check lib/index.js lib/state.js lib/client.js
+```
+
+## 交互
+
+| 操作 | 结果 |
+| --- | --- |
+| 左键点楼层 / 左侧「楼层」 | 聚焦该层，只显示这一层 |
+| 右键 / 顶栏「全局视角」/ `Esc` | 回到整栋楼全局视角 |
+| 拖动 / 滚轮 | 旋转 / 缩放（聚焦时也可以） |
+| 点机器人或名字标签 / 左侧榜单 | 打开该会话详情卡 |
+| `Esc` | 有详情卡时先关卡片，再按一次回全局 |
+
 ## 已知限制
 
 - 只读本机会话日志；日志是追加写的多帧 zstd，正在写入时最后一帧可能不完整（会跳过不完整部分）；
 - 只展示最近活跃的会话，更早的会话不会进入名册；
-- `lib/panel.html` 为 Night Shift 原版演示页的修改版，版权归原作者，详见 `NOTICE`。
+- 3D 场景按最多 4 个团队楼层设计。
 
 ## 许可
 
-插件代码 MIT（见 `LICENSE`）。`lib/panel.html` 为第三方演示页面衍生作品，版权归原作者，详见 `NOTICE`。
+MIT（见 `LICENSE`）。打包产物内联了 Three.js（MIT，© three.js authors），见 `NOTICE`。
 
 ---
 
 ## English
 
-**Night Shift** is a DSH plugin that turns every DeepSeek Harness session into a live 3D office.
-The page's visual design is adapted from the Night Shift demo, with all data coming from local session logs.
+**Night Shift** is a DSH plugin that turns every DeepSeek Harness session into a live 3D office built with Three.js.
 
-- Install: `dsh plugin --profile desktop add github:mayc0202/dsh-night-shift`, enable **Night Shift** in the plugin manager, restart DSH. A floating「夜班」button opens `/night-shift/`.
+- Install: `dsh plugin --profile desktop add github:mayc0202/dsh-night-shift`, enable **Night Shift** in the plugin manager, restart DSH. A floating「夜班」button appears in the bottom-right corner; clicking it opens `/night-shift/`.
 - Data: reads `$DSH_HOME/sessions/**/session.v4.jsonl.zstd` (read-only, no network). Status, turn counts and token usage are derived from `turn/*`, `tool/call`, `assistant/message.usage` and approval events.
-- Preview: `node dev/dev-server.mjs` → http://127.0.0.1:8899/night-shift/
-- License: plugin code MIT; `lib/panel.html` is derived from a third-party demo (see `NOTICE`).
+- Preview: `npm install && node dev/dev-server.mjs` → http://127.0.0.1:8899/night-shift/
+- License: MIT; bundled Three.js is MIT (see `NOTICE`).
