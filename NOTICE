@@ -11,3 +11,18 @@
 Three.js 以 MIT 许可随本仓库一起分发；其许可证文本见 https://github.com/mrdoob/three.js/blob/dev/LICENSE
 
 其余代码（插件宿主、数据层、客户端、3D 面板源码 `panel-src/`）均为本仓库作者原创。
+
+
+## 角色图片资产
+
+`panel-src/assets/exp-*.png` 为 Catora 猫猫角色表情图片，由本项目的使用者提供
+（本地来源：`~/Desktop/catora-cat`）。这些图片**不属于**本仓库 MIT 代码许可范围。
+
+- 如果这些图片由你原创/拥有版权，可以随项目一起分发；
+- 如果来自第三方，请在公开发布前取得授权或替换成你自己的角色素材；
+- 公开仓库建议在 README 中注明素材来源与授权方式。
+
+## 非官方声明
+
+本项目是第三方插件，与 DeepSeek 官方无隶属、合作或背书关系。
+“DeepSeek”“DeepSeek Harness”“DSH”仅用于描述兼容对象。

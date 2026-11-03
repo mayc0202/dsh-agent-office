@@ -1,6 +1,8 @@
-# Catora · DSH 插件版
+# 智能体办公室 · DSH 插件版
 
-把 DeepSeek Harness 的全部会话变成一间实时 3D 办公室：右下角一个「Catora」按钮，点开就是全屏面板。
+> 非官方第三方插件，与 DeepSeek 官方无隶属或背书关系。
+
+把 DeepSeek Harness 的全部会话变成一间实时 3D 办公室：右下角一个猫头按钮，点开就是全屏面板。
 3D 场景用 **Three.js** 自绘（楼层、工位、Agent 小人、霓虹灯牌、动态状态动画），不依赖第三方页面模板，也不依赖 ntfy 或常驻外部进程。
 
 ![全局视角](screenshot.png)
@@ -16,8 +18,8 @@
 - 📟 **工作区大屏**：每层墙面大屏显示该工作区（团队）的本周 TOKEN、今日 TOKEN、会话数和占比条，随轮询实时更新；
 - 💳 **DeepSeek 余额卡**：读取本机 DSH 登录凭证，查询平台充值钱包余额与赠金（只展示币种/金额，token 不出本机进程）；
 - 🖥️ **显示器状态**：休息/完成时黑屏待机；工作中显示代码编辑器（滚动行 + 光标）；工作超过 5 分钟或卡住时显示红色「HIGH LOAD / 执行任务时间过长」告警；
-- 🐱 **Catora 猫猫 Agent**：用 catora-cat 的 logo / 表情差分 PNG 做成平面贴图立牌（Three.js Sprite），**永远面向相机**，颜色按 Agent 调色；空闲时用 sleepy 表情 + 飘「Z」睡觉，其他状态用 happy/surprised/dizzy/loved；猫咪用 GSAP 做上下浮动动画，座垫上带随浮动变化的软阴影；
-- 🖼️ **自定义猫咪图片**：DSH 设置 →「Catora 办公室」上传图片即可替换所有 Agent 头像（本地 localStorage 保存，不上传服务器）；
+- 🐱 **猫猫 Agent（Catora 主题）**：用 catora-cat 的 logo / 表情差分 PNG 做成平面贴图立牌（Three.js Sprite），**永远面向相机**，颜色按 Agent 调色；空闲时用 sleepy 表情 + 飘「Z」睡觉，其他状态用 happy/surprised/dizzy/loved；猫咪用 GSAP 做上下浮动动画，座垫上带随浮动变化的软阴影；
+- 🖼️ **自定义猫咪图片**：DSH 设置 →「智能体办公室」上传图片即可替换所有 Agent 头像（本地 localStorage 保存，不上传服务器）；
 
 - 🏢 **3D 实时办公室**：Three.js 自绘的错层办公室——每层有工位、显示器、会议桌、白板、服务器机柜、玻璃护栏和吊灯；每个会话是一个简洁的立方体 Agent（按状态做呼吸/浮动脉冲，工作/等待/卡住/待机各有反馈）；
 - 🖱️ **楼层聚焦**：左键点任意楼层（或左侧楼层列表）→ 只显示并看清这一层；右键 /「全局视角」按钮 / `Esc` 回到整栋楼的全局视角；
@@ -33,37 +35,37 @@
 DSH 侧边栏 → **插件** → 安装组合包，填：
 
 ```
-github:mayc0202/dsh-catora-office
+github:mayc0202/dsh-agent-office
 ```
 
 或命令行：
 
 ```bash
 DSH="/Applications/DeepSeek Harness.app/Contents/Resources/runtime/cli/bin/dsh"
-"$DSH" plugin --profile desktop add github:mayc0202/dsh-catora-office
+"$DSH" plugin --profile desktop add github:mayc0202/dsh-agent-office
 ```
 
-安装后在「插件」页勾选 **Catora**（或把 `dsh-catora-office` 追加到
+安装后在「插件」页勾选 **智能体办公室**（或把 `dsh-agent-office` 追加到
 `~/.dsh/profiles/desktop/package.json` 的 `dsh.profile.bundles`），重启 DSH 生效。
 
 ### 方式 B：本地目录
 
 ```bash
-git clone https://github.com/mayc0202/dsh-catora-office
-"$DSH" plugin --profile desktop add link:"$(pwd)/dsh-catora-office"
+git clone https://github.com/mayc0202/dsh-agent-office
+"$DSH" plugin --profile desktop add link:"$(pwd)/dsh-agent-office"
 ```
 
 ### 安装后
 
-- 右下角出现「Catora」按钮，点开全屏面板，`Esc` 关闭；
-- 或直接访问 `http://127.0.0.1:<DSH端口>/catora/`。
+- 右下角出现猫头按钮，点开全屏面板，`Esc` 关闭；
+- 或直接访问 `http://127.0.0.1:<DSH端口>/agent-office/`。
 
 ## 先预览（不安装）
 
 ```bash
 npm install          # 安装 three / esbuild（仅构建/预览需要）
 node dev/dev-server.mjs
-# 打开 http://127.0.0.1:8899/catora/
+# 打开 http://127.0.0.1:8899/agent-office/
 ```
 
 `dev/dev-server.mjs` 只起一个最小 HTTP 服务（同一份面板 + 同款 API），用于验证页面与数据。
@@ -74,7 +76,7 @@ node dev/dev-server.mjs
 
 | 半侧 | 文件 | 作用 |
 | --- | --- | --- |
-| 宿主 | `lib/index.js` | 在 DSH 的 Web 服务器上挂 `GET /catora/`（页面）和 `GET /catora/api/state`（数据） |
+| 宿主 | `lib/index.js` | 在 DSH 的 Web 服务器上挂 `GET /agent-office/`（页面）和 `GET /agent-office/api/state`（数据） |
 | 数据 | `lib/state.js` | 读 `~/.dsh/sessions/<workspace>/<session>/session.v4.jsonl.zstd`（多帧 zstd 逐帧解压，按 mtime 缓存）；从 `turn/start|end`、`tool/call`、`assistant/message.usage`、`approval/asked|decided`、`ask_user_question` 推导状态与用量 |
 | 客户端 | `lib/client.js` | 右下角「Catora」悬浮按钮 + 全屏 iframe 覆盖层，可「在新标签打开」 |
 | 3D 页面 | `lib/panel.html` | 单文件构建产物（Three.js 场景 + HUD），同源轮询 API |
@@ -94,8 +96,8 @@ node dev/dev-server.mjs
 
 ```yaml
 - insert:
-    - id: catora-office
-      name: dsh-catora-office
+    - id: agent-office
+      name: dsh-agent-office
       config:
         maxAgents: 7            # 名册最多显示几个会话
         activeWindowHours: 24   # 只统计最近多少小时内活跃的会话
@@ -135,9 +137,16 @@ MIT（见 `LICENSE`）。打包产物内联了 Three.js（MIT，© three.js auth
 
 ## English
 
-**Catora** is a DSH plugin that turns every DeepSeek Harness session into a live 3D office built with Three.js.
+**Agent Office** is a DSH plugin that turns every DeepSeek Harness session into a live 3D office built with Three.js.
 
-- Install: `dsh plugin --profile desktop add github:mayc0202/dsh-catora-office`, enable **Catora** in the plugin manager, restart DSH. A floating「Catora」button appears in the bottom-right corner; clicking it opens `/catora/`.
+- Install: `dsh plugin --profile desktop add github:mayc0202/dsh-agent-office`, enable **Agent Office** in the plugin manager, restart DSH. A floating cat-head button appears in the bottom-right corner; clicking it opens `/agent-office/`.
 - Data: reads `$DSH_HOME/sessions/**/session.v4.jsonl.zstd` (read-only, no network). Status, turn counts and token usage are derived from `turn/*`, `tool/call`, `assistant/message.usage` and approval events.
-- Preview: `npm install && node dev/dev-server.mjs` → http://127.0.0.1:8899/catora/
+- Preview: `npm install && node dev/dev-server.mjs` → http://127.0.0.1:8899/agent-office/
 - License: MIT; bundled Three.js is MIT (see `NOTICE`).
+
+
+## 版权与声明
+
+- 本插件是**非官方第三方插件**，与 DeepSeek 官方无隶属或背书关系；`DeepSeek` / `DSH` 仅用于说明兼容对象。
+- 插件代码（宿主、数据层、客户端、3D 面板源码）为本仓库作者原创，按 MIT 授权。
+- 猫咪角色图片位于 `panel-src/assets/`，由项目使用者提供（本地来源 `~/Desktop/catora-cat`）；公开分发前请确认你拥有这些图片的版权或相应授权，否则请替换为自己的素材。详见 `NOTICE`。

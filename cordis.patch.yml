@@ -1,4 +1,4 @@
-# Catora 插件注册
+# 智能体办公室插件注册
 - insert:
-    - id: catora-office
-      name: dsh-catora-office
+    - id: agent-office
+      name: dsh-agent-office

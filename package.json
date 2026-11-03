@@ -1,7 +1,7 @@
 {
-  "name": "dsh-catora-office",
-  "version": "4.0.0",
-  "description": "Catora：把 DeepSeek Harness 会话变成实时 3D 办公室（本地插件版，无外部服务）。",
+  "name": "dsh-agent-office",
+  "version": "4.1.0",
+  "description": "智能体办公室：把 DeepSeek Harness 会话变成实时 3D 办公室（本地插件版，无外部服务）。",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
@@ -40,7 +40,7 @@
   "keywords": [
     "dsh",
     "dsh-plugin",
-    "catora",
+    "agent-office",
     "3d",
     "office",
     "deepseek-harness"
@@ -51,11 +51,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mayc0202/dsh-catora-office.git"
+    "url": "git+https://github.com/mayc0202/dsh-agent-office.git"
   },
-  "homepage": "https://github.com/mayc0202/dsh-catora-office#readme",
+  "homepage": "https://github.com/mayc0202/dsh-agent-office#readme",
   "bugs": {
-    "url": "https://github.com/mayc0202/dsh-catora-office/issues"
+    "url": "https://github.com/mayc0202/dsh-agent-office/issues"
   },
   "scripts": {
     "dev": "node dev/dev-server.mjs",
