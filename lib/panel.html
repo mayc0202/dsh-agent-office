@@ -59,10 +59,13 @@
 
   /* ---------- 左侧栏：榜单 + 楼层 ---------- */
   #left{position:absolute;left:18px;top:92px;bottom:18px;width:326px;display:flex;flex-direction:column;gap:14px;z-index:9;min-height:0}
+  #left > .panel{position:relative;left:auto;top:auto;bottom:auto}
   #board{position:relative;left:auto;top:auto;width:auto;flex:1 1 auto;min-height:0;max-height:none;display:flex;flex-direction:column}
-  #board .panel__body{overflow:auto;scrollbar-width:thin;scrollbar-color:#242a34 transparent}
-  #board .panel__body::-webkit-scrollbar{width:6px}
-  #board .panel__body::-webkit-scrollbar-thumb{background:#242a34;border-radius:3px}
+  #board .panel__body{overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;padding-right:6px;scrollbar-gutter:stable}
+  #board .panel__body::-webkit-scrollbar{width:8px}
+  #board .panel__body::-webkit-scrollbar-track{background:rgba(255,255,255,.03);border-radius:4px}
+  #board .panel__body::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:4px}
+  #board .panel__body::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.32)}
   .row{display:flex;align-items:center;gap:10px;padding:10px 10px;border-radius:12px;cursor:pointer;transition:background .15s;appearance:none;width:100%;border:0;background:transparent;color:inherit;font:inherit;text-align:left}
   .row:hover{background:rgba(255,255,255,.045)}
   .row:focus-visible,.floor:focus-visible{outline:2px solid rgba(61,225,198,.55);outline-offset:1px}
@@ -77,7 +80,11 @@
 
   /* ---------- 楼层 ---------- */
   #floors{position:relative;left:auto;bottom:auto;width:auto;flex:none}
-  #floors .panel__body{display:flex;flex-direction:column;gap:4px}
+  #floors .panel__body{display:flex;flex-direction:column;gap:4px;max-height:min(30vh,238px);overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-gutter:stable}
+  #floors .panel__body::-webkit-scrollbar{width:8px}
+  #floors .panel__body::-webkit-scrollbar-track{background:rgba(255,255,255,.03);border-radius:4px}
+  #floors .panel__body::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:4px}
+  #floors .panel__body::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.32)}
   .floor{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;cursor:pointer;font-size:13px;appearance:none;width:100%;border:0;background:transparent;color:inherit;font:inherit;text-align:left}
   .floor:hover{background:rgba(255,255,255,.045)}
   .floor.on{background:rgba(61,225,198,.1)}
@@ -180,11 +187,6 @@
       <div class="panel__head"><span>本周 TOKEN 占比</span><b>TOP</b></div>
       <div class="panel__body" id="boardBody"></div>
     </aside>
-
-    <aside id="floors" class="panel">
-      <div class="panel__head"><span>楼层 / 团队</span><b id="floorCount"></b></div>
-      <div class="panel__body" id="floorBody"></div>
-    </aside>
   </div>
 
   <aside id="right">
@@ -206,6 +208,11 @@
       <div class="panel__head"><span>运行检查</span><b id="checkScore"></b></div>
       <div class="panel__body" id="checkBody"></div>
     </section>
+
+    <aside id="floors" class="panel">
+      <div class="panel__head"><span>楼层 / 团队</span><b id="floorCount"></b></div>
+      <div class="panel__body" id="floorBody"></div>
+    </aside>
 
     <footer id="meter" class="panel">
       <div class="panel__head"><span>本周 TOKEN</span><b id="meterSpan">周一至今</b></div>
