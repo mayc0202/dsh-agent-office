@@ -1643,6 +1643,105 @@ window.addEventListener('resize', () => {
   labelRenderer.setSize(w, h)
 })
 
+/* ---------------- 背景音乐 ---------------- */
+const bgm = new Audio()
+bgm.loop = true
+bgm.preload = 'auto'
+const MUSIC_KEY = 'night-shift-music-url'
+const MUSIC_VOL_KEY = 'night-shift-music-volume'
+const musicUrlInput = $('#musicUrl')
+const musicStatus = $('#musicStatus')
+const musicBtn = $('#musicBtn')
+const musicPanel = $('#musicPanel')
+const musicToggle = $('#musicToggle')
+const musicUse = $('#musicUse')
+const musicVol = $('#musicVol')
+
+function readStore(key) {
+  try { return localStorage.getItem(key) ?? '' } catch { return '' }
+}
+function writeStore(key, value) {
+  try { localStorage.setItem(key, value) } catch {}
+}
+function musicLabel(text) {
+  if (musicStatus) musicStatus.textContent = text
+}
+function updateMusicButton() {
+  const playing = !bgm.paused && !bgm.ended && bgm.currentSrc !== ''
+  if (musicToggle) musicToggle.textContent = playing ? '暂停' : '播放'
+  const label = musicBtn?.querySelector('span')
+  if (label) label.textContent = playing ? '播放中' : '音乐'
+  musicBtn?.classList.toggle('playing', playing)
+}
+function setMusicSource(value, autoplay = false) {
+  const url = String(value ?? '').trim()
+  if (url === '') {
+    musicLabel('请先粘贴一个音乐链接')
+    musicUrlInput?.focus()
+    return false
+  }
+  bgm.src = url
+  bgm.load()
+  if (musicUrlInput) musicUrlInput.value = url
+  writeStore(MUSIC_KEY, url)
+  musicLabel(autoplay ? '正在加载…' : '已加载，点「播放」开始')
+  if (autoplay) {
+    bgm.play().then(() => musicLabel('正在播放')).catch(() => musicLabel('浏览器阻止了自动播放，点「播放」开始'))
+  }
+  return true
+}
+musicBtn?.addEventListener('click', () => {
+  const open = musicPanel.hidden
+  musicPanel.hidden = !open
+  musicBtn.setAttribute('aria-expanded', String(open))
+})
+musicUse?.addEventListener('click', () => setMusicSource(musicUrlInput.value, true))
+musicToggle?.addEventListener('click', () => {
+  if (bgm.paused) {
+    if (!bgm.currentSrc && !setMusicSource(musicUrlInput.value, false)) return
+    bgm.play().then(() => musicLabel('正在播放')).catch(() => musicLabel('播放失败：链接不可直接播放或格式不支持'))
+  } else {
+    bgm.pause()
+    musicLabel('已暂停')
+  }
+})
+bgm.addEventListener('play', () => { musicLabel('正在播放'); updateMusicButton() })
+bgm.addEventListener('pause', () => { updateMusicButton() })
+bgm.addEventListener('error', () => musicLabel('加载失败：请检查链接是否为可直接播放的音频直链'))
+musicVol?.addEventListener('input', () => {
+  const value = Number(musicVol.value) || 0
+  bgm.volume = Math.max(0, Math.min(1, value))
+  writeStore(MUSIC_VOL_KEY, String(bgm.volume))
+})
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && musicPanel && !musicPanel.hidden) {
+    musicPanel.hidden = true
+    musicBtn?.setAttribute('aria-expanded', 'false')
+  }
+})
+document.addEventListener('pointerdown', event => {
+  if (!musicPanel || musicPanel.hidden) return
+  if (musicPanel.contains(event.target) || musicBtn?.contains(event.target)) return
+  musicPanel.hidden = true
+  musicBtn?.setAttribute('aria-expanded', 'false')
+})
+
+const storedVolume = Number(readStore(MUSIC_VOL_KEY))
+bgm.volume = Number.isFinite(storedVolume) && storedVolume > 0 ? Math.min(1, storedVolume) : 0.35
+if (musicVol) musicVol.value = String(bgm.volume)
+const queryMusic = new URLSearchParams(location.search).get('music')
+const storedMusic = readStore(MUSIC_KEY)
+if (queryMusic) {
+  setMusicSource(queryMusic, false)
+  musicLabel('已从链接加载，点「播放」开始')
+} else if (storedMusic) {
+  bgm.src = storedMusic
+  if (musicUrlInput) musicUrlInput.value = storedMusic
+  musicLabel('已保存音乐，点「播放」开始')
+} else {
+  musicLabel('支持直接粘贴音频链接；也可以用 ?music=链接 打开页面。')
+}
+
 /* ---------------- 启动 ---------------- */
 window.__NS = {
   scene,
