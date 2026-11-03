@@ -1,6 +1,6 @@
 {
   "name": "dsh-agent-office",
-  "version": "4.1.0",
+  "version": "4.1.1",
   "description": "智能体办公室：把 DeepSeek Harness 会话变成实时 3D 办公室（本地插件版，无外部服务）。",
   "type": "module",
   "main": "lib/index.js",
