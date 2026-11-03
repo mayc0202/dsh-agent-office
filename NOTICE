@@ -1,0 +1,17 @@
+# NOTICE · 第三方来源说明
+
+## lib/panel.html
+
+`lib/panel.html` 的 3D 办公室页面（场景、渲染、布局、部分文案与视觉）修改自第三方演示站点：
+
+- 原站：`https://mori-nightshift-grokbot.netlify.app/`（标题 “Night Shift · Grok Bot office”）
+- 原作者/归属：Grok Bot / @0xjmori 相关演示
+- 本仓库对其所做的改动：单文件打包、全屏自适应布局、中文化、点击/拖拽/缩放等交互修补、以及把数据源从 ntfy 改为本插件同源 API。
+
+该文件的原始版权归原作者所有。本仓库不主张其版权，也不将其纳入 MIT 许可范围；
+如果原作者认为公开分发不妥，请在仓库开 issue，我们会立即移除该文件或替换为自绘实现。
+
+## 其它
+
+`lib/index.js`、`lib/state.js`、`lib/client.js`、`dev/`、README 等为本仓库作者原创，
+按根目录 `LICENSE`（MIT）授权。

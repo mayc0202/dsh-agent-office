@@ -1,0 +1,9 @@
+# Night Shift 的 bundle patch：把插件挂进 DSH 配置树。
+#
+# - id 必须唯一（按它定位 patch 覆盖），name 解析到包入口 lib/index.js；
+# - 本包声明了 dsh.client，DSH 模块系统会同时把它扫描为浏览器插件，
+#   提供 /plugins/dsh-night-shift/client.js 给页面；
+# - 宿主路由：GET /night-shift/ 与 GET /night-shift/api/state。
+- insert:
+    - id: night-shift
+      name: dsh-night-shift
