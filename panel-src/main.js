@@ -405,6 +405,11 @@ const floorTexture = (() => {
 
 function disposeGroup(group) {
   group.traverse(object => {
+    // CSS2D 标签是独立 DOM，scene 移除后渲染器不会回收，必须手动删掉，否则重建会累积重影
+    if (object.isCSS2DObject && object.element) {
+      object.element.remove()
+      return
+    }
     if (object.geometry) object.geometry.dispose()
     if (object.material) {
       const materials = Array.isArray(object.material) ? object.material : [object.material]
