@@ -17,8 +17,8 @@ const API = '/night-shift/api/state'
 const FLOOR_GAP = 4.0
 const W = 9
 const D = 6.5
-const OFFSET_X = 0.7
-const OFFSET_Z = -2.6
+const OFFSET_X = 0
+const OFFSET_Z = -1.2
 const TEAM_COLORS = ['#ff7a45', '#7fa8ff', '#b79bff', '#3de1c6']
 const STATUS = {
   working: { label: '工作中', color: '#3de1c6' },
