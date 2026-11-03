@@ -7,11 +7,11 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js'
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 
 const API = '/night-shift/api/state'
-const FLOOR_GAP = 4.7
+const FLOOR_GAP = 5.0
 const W = 15
 const D = 10
-const OFFSET_X = 2.3
-const OFFSET_Z = -2.7
+const OFFSET_X = 0.6
+const OFFSET_Z = -4.6
 const TEAM_COLORS = ['#ff7a45', '#7fa8ff', '#b79bff', '#3de1c6']
 const STATUS = {
   working: { label: '工作中', color: '#3de1c6' },
@@ -198,7 +198,7 @@ const neonSign = (() => {
   const texture = new THREE.CanvasTexture(canvas)
   texture.colorSpace = THREE.SRGBColorSpace
   const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false }))
-  sprite.scale.set(6.6, 1.24, 1)
+  sprite.scale.set(5.8, 1.1, 1)
   sprite.position.set(0, 6, 0)
   scene.add(sprite)
   return sprite
@@ -324,20 +324,23 @@ function robotFor(agent, index = 0) {
   const eyes = []
   const pupils = []
   for (const dx of [-0.16, 0.16]) {
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.1, 16, 12), new THREE.MeshBasicMaterial({ color: 0xf7fbff }))
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.13, 18, 14), new THREE.MeshBasicMaterial({ color: 0xf9fdff }))
     eye.position.set(dx, eyeY, front)
-    eye.scale.set(1, 1.12, 0.45)
+    eye.scale.set(1, 1.18, 0.42)
     group.add(eye)
     eyes.push(eye)
-    const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.048, 12, 10), darkMat)
-    pupil.position.set(dx * 0.72, eyeY - 0.004, front + 0.045)
-    pupil.scale.set(1, 1.1, 0.4)
+    const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.062, 14, 12), new THREE.MeshBasicMaterial({ color: 0x0d1116 }))
+    pupil.position.set(dx * 0.74, eyeY - 0.008, front + 0.05)
+    pupil.scale.set(1, 1.15, 0.4)
     group.add(pupil)
     pupils.push(pupil)
+    const shine = new THREE.Mesh(new THREE.SphereGeometry(0.022, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffffff }))
+    shine.position.set(dx * 0.74 - 0.02, eyeY + 0.035, front + 0.075)
+    group.add(shine)
   }
 
   // 微笑
-  const mouth = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.012, 6, 14, Math.PI), darkMat)
+  const mouth = new THREE.Mesh(new THREE.TorusGeometry(0.075, 0.014, 6, 16, Math.PI), darkMat)
   mouth.position.set(0, eyeY - 0.16, front + 0.03)
   mouth.rotation.z = Math.PI
   mouth.scale.set(1, 0.8, 1)
@@ -542,7 +545,7 @@ function workstation(agent, spot) {
  * 楼层
  * ------------------------------------------------------------------ */
 function floorOffset(index) {
-  return new THREE.Vector3(index * OFFSET_X, index * FLOOR_GAP, -index * 2.7)
+  return new THREE.Vector3(index * OFFSET_X, index * FLOOR_GAP, index * OFFSET_Z)
 }
 
 function floorSpots(count) {
@@ -686,18 +689,108 @@ function buildFloor(team, index, teamAgents) {
   accentLight.position.set(0, 2.2, -3.2)
   group.add(accentLight)
 
-  // 服务器机柜
-  const rack = new THREE.Mesh(new THREE.BoxGeometry(0.9, 1.9, 0.7), new THREE.MeshStandardMaterial({ color: 0x0c131b, roughness: 0.55, metalness: 0.55 }))
-  rack.position.set(W / 2 - 1.1, 0.98, -D / 2 + 0.95)
-  group.add(rack)
-  for (let r = 0; r < 6; r++) {
-    const led = new THREE.Mesh(
-      new THREE.BoxGeometry(0.32, 0.025, 0.02),
-      new THREE.MeshBasicMaterial({ color: [0x3de1c6, 0x7dd3a0, 0xffb86b, 0x6f9bff][r % 4] }),
-    )
-    led.position.set(W / 2 - 1.1, 0.32 + r * 0.27, -D / 2 + 1.31)
-    group.add(led)
+  // 大屏（会话作战面板）
+  const dashCanvas = document.createElement('canvas')
+  dashCanvas.width = 1024
+  dashCanvas.height = 512
+  const dctx = dashCanvas.getContext('2d')
+  dctx.fillStyle = '#08141f'
+  dctx.fillRect(0, 0, 1024, 512)
+  dctx.fillStyle = 'rgba(255,255,255,.05)'
+  dctx.fillRect(0, 0, 1024, 56)
+  dctx.fillStyle = teamColor.getStyle()
+  dctx.beginPath(); dctx.arc(34, 28, 8, 0, Math.PI * 2); dctx.fill()
+  dctx.fillStyle = 'rgba(240,246,252,.95)'
+  dctx.font = '600 26px ui-monospace, Menlo, monospace'
+  dctx.fillText('SESSION OPS · ' + team.toUpperCase(), 56, 36)
+  dctx.fillStyle = 'rgba(160,200,235,.75)'
+  dctx.font = '500 18px ui-monospace, Menlo, monospace'
+  dctx.fillText('LIVE', 940, 36)
+  // 柱状图
+  for (let b = 0; b < 14; b++) {
+    const h2 = 40 + ((b * 67) % 170)
+    const x = 60 + b * 44
+    dctx.fillStyle = b % 4 === 0 ? teamColor.getStyle() : 'rgba(120,170,220,.35)'
+    dctx.fillRect(x, 300 - h2, 24, h2)
   }
+  // 折线
+  dctx.strokeStyle = 'rgba(255,180,120,.9)'
+  dctx.lineWidth = 3
+  dctx.beginPath()
+  for (let x = 0; x < 380; x += 12) {
+    const y = 430 - Math.sin(x * 0.03 + 1) * 40 - (x % 60) * 0.2
+    if (x === 0) dctx.moveTo(620 + x, y)
+    else dctx.lineTo(620 + x, y)
+  }
+  dctx.stroke()
+  dctx.fillStyle = 'rgba(160,200,235,.5)'
+  dctx.font = '500 16px ui-monospace, Menlo, monospace'
+  dctx.fillText('TOKENS / HOUR', 620, 470)
+  const dashTexture = new THREE.CanvasTexture(dashCanvas)
+  dashTexture.colorSpace = THREE.SRGBColorSpace
+  const dash = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 1.8), new THREE.MeshBasicMaterial({ map: dashTexture, toneMapped: false }))
+  dash.position.set(W * 0.12, 1.78, -D / 2 + 0.26)
+  group.add(dash)
+  const dashGlow = new THREE.Mesh(
+    new THREE.PlaneGeometry(4.4, 2.4),
+    new THREE.MeshBasicMaterial({ map: glowTexture, color: teamColor, transparent: true, opacity: 0.12, blending: THREE.AdditiveBlending, depthWrite: false }),
+  )
+  dashGlow.position.set(W * 0.12, 1.78, -D / 2 + 0.23)
+  group.add(dashGlow)
+
+  // 机房（玻璃房 + 机柜）
+  const serverRoom = new THREE.Group()
+  serverRoom.position.set(W / 2 - 1.5, 0, -D / 2 + 1.35)
+  const cageMat = new THREE.MeshStandardMaterial({ color: 0x6f9bc4, transparent: true, opacity: 0.06, roughness: 0.1, metalness: 0.1, depthWrite: false, side: THREE.DoubleSide })
+  const cage = new THREE.Mesh(new THREE.BoxGeometry(2.2, 2.4, 2.0), cageMat)
+  cage.position.y = 1.2
+  serverRoom.add(cage)
+  const cageEdges = new THREE.LineSegments(
+    new THREE.EdgesGeometry(new THREE.BoxGeometry(2.2, 2.4, 2.0)),
+    new THREE.LineBasicMaterial({ color: 0x9fc7e6, transparent: true, opacity: 0.35 }),
+  )
+  cageEdges.position.y = 1.2
+  serverRoom.add(cageEdges)
+  const rackMat2 = new THREE.MeshStandardMaterial({ color: 0x0b1118, roughness: 0.55, metalness: 0.6 })
+  for (const dx of [-0.45, 0.45]) {
+    const rack2 = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.7, 0.6), rackMat2)
+    rack2.position.set(dx, 0.86, 0)
+    serverRoom.add(rack2)
+    for (let r = 0; r < 5; r++) {
+      const led2 = new THREE.Mesh(
+        new THREE.BoxGeometry(0.22, 0.02, 0.02),
+        new THREE.MeshBasicMaterial({ color: [0x3de1c6, 0x7dd3a0, 0xffb86b, 0x6f9bff][r % 4] }),
+      )
+      led2.position.set(dx, 0.35 + r * 0.26, 0.31)
+      serverRoom.add(led2)
+    }
+  }
+  group.add(serverRoom)
+
+  // 彩色货架（参考原版的彩色格子）
+  const shelf = new THREE.Group()
+  shelf.position.set(-W / 2 + 0.6, 0, -D / 2 + 1.8)
+  const shelfMat = new THREE.MeshStandardMaterial({ color: 0x1b2430, roughness: 0.7, metalness: 0.3 })
+  for (const y of [0.5, 1.15, 1.8]) {
+    const plank = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.06, 0.5), shelfMat)
+    plank.position.y = y
+    shelf.add(plank)
+  }
+  for (const sx of [-0.85, 0.85]) {
+    const side = new THREE.Mesh(new THREE.BoxGeometry(0.07, 2.0, 0.5), shelfMat)
+    side.position.set(sx, 1.0, 0)
+    shelf.add(side)
+  }
+  const blockColors = [0xff7a45, 0x6f9bff, 0xffd166, 0x3de1c6, 0xb18cff, 0xff6b6b, 0x7dd3a0]
+  for (let i = 0; i < 18; i++) {
+    const block = new THREE.Mesh(
+      new THREE.BoxGeometry(0.22, 0.16, 0.22),
+      new THREE.MeshStandardMaterial({ color: blockColors[i % blockColors.length], roughness: 0.55, metalness: 0.1 }),
+    )
+    block.position.set(-0.6 + (i % 6) * 0.24, 0.62 + Math.floor(i / 6) * 0.62, 0.02 + ((i * 7) % 3) * 0.06)
+    shelf.add(block)
+  }
+  group.add(shelf)
 
   // 绿植
   const potMat = new THREE.MeshStandardMaterial({ color: 0x1a2129, roughness: 0.85 })
@@ -746,29 +839,6 @@ function buildFloor(team, index, teamAgents) {
     }
   }
 
-  // 白板（墙面）
-  const boardCanvas2 = document.createElement('canvas')
-  boardCanvas2.width = 512
-  boardCanvas2.height = 256
-  const wb = boardCanvas2.getContext('2d')
-  wb.fillStyle = '#0c1721'
-  wb.fillRect(0, 0, 512, 256)
-  wb.strokeStyle = 'rgba(160,200,235,.55)'
-  wb.lineWidth = 3
-  wb.beginPath(); wb.moveTo(40, 200); wb.bezierCurveTo(140, 120, 220, 210, 300, 120); wb.stroke()
-  wb.strokeStyle = 'rgba(61,225,198,.8)'
-  wb.beginPath(); wb.moveTo(40, 200); wb.lineTo(300, 120); wb.stroke()
-  wb.fillStyle = 'rgba(160,200,235,.5)'
-  for (let r = 0; r < 5; r++) wb.fillRect(330, 60 + r * 24, 130, 8)
-  const wbTexture = new THREE.CanvasTexture(boardCanvas2)
-  wbTexture.colorSpace = THREE.SRGBColorSpace
-  const whiteboard = new THREE.Mesh(
-    new THREE.PlaneGeometry(2.0, 1.0),
-    new THREE.MeshBasicMaterial({ map: wbTexture }),
-  )
-  whiteboard.position.set(W * 0.3, 1.75, -D / 2 + 0.26)
-  group.add(whiteboard)
-
   // 工位
   const spots = floorSpots(teamAgents.length)
   const children = []
@@ -776,7 +846,7 @@ function buildFloor(team, index, teamAgents) {
     const spot = spots[i]
     group.add(workstation(agent, spot))
     const robot = robotFor(agent, i)
-    robot.scale.setScalar(1.08)
+    robot.scale.setScalar(1.18)
     robot.position.set(spot.x + 1.02, 0.02, spot.z + 1.28)
     robot.userData.floorIndex = index
     group.add(robot)
@@ -813,10 +883,10 @@ function globalPose(floorsCount) {
   const height = Math.max(0, (floorsCount - 1) * FLOOR_GAP)
   const centerX = ((floorsCount - 1) * OFFSET_X) / 2
   const centerZ = ((floorsCount - 1) * OFFSET_Z) / 2
-  const dist = (15 + floorsCount * 2.6) * viewScale()
+  const dist = (15 + floorsCount * 2.8) * viewScale()
   return {
-    target: new THREE.Vector3(centerX, height / 2 + 1.35, centerZ),
-    position: new THREE.Vector3(centerX + dist * 0.76, height / 2 + 1.35 + dist * 0.46, centerZ + dist * 0.88),
+    target: new THREE.Vector3(centerX, height / 2 + 1.6, centerZ),
+    position: new THREE.Vector3(centerX + dist * 0.55, height / 2 + 1.6 + dist * 0.6, centerZ + dist * 0.95),
   }
 }
 
@@ -825,7 +895,7 @@ function focusPose(floor) {
   const scale = clamp(viewScale(), 0.95, 1.3)
   return {
     target: center.clone().add(new THREE.Vector3(0, 1.1, 0)),
-    position: center.clone().add(new THREE.Vector3(14.5, 10.2, 18.5).multiplyScalar(scale)),
+    position: center.clone().add(new THREE.Vector3(12.5, 9.6, 16.5).multiplyScalar(scale)),
   }
 }
 
@@ -1045,7 +1115,7 @@ function rebuild(list) {
     for (const child of floor.children) agentsById.set(child.agent.id, { agent: child.agent, robot: child.robot, floor })
   })
   const height = Math.max(0, (teams.length - 1) * FLOOR_GAP)
-  neonSign.position.set((teams.length - 1) * OFFSET_X * 0.5, height + 4.55, (teams.length - 1) * OFFSET_Z * 0.5 + 5.5)
+  neonSign.position.set((teams.length - 1) * OFFSET_X * 0.5, height + 4.9, (teams.length - 1) * OFFSET_Z * 0.5)
   selectedId = null
   focusFloor = null
   $('#focusChip').hidden = true
