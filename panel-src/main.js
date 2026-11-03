@@ -85,7 +85,8 @@ controls.target.set(0, 2.4, 0)
 /* ------------------------------------------------------------------ *
  * 光照 / 环境
  * ------------------------------------------------------------------ */
-scene.add(new THREE.HemisphereLight(0x4a6a9c, 0x060c16, 1.45))
+const hemi = new THREE.HemisphereLight(0x4a6a9c, 0x060c16, 1.45)
+scene.add(hemi)
 const key = new THREE.DirectionalLight(0xcfe2ff, 2.0)
 key.position.set(16, 30, 18)
 scene.add(key)
@@ -215,6 +216,80 @@ const dust = (() => {
   scene.add(points)
   return points
 })()
+
+/* ------------------------------------------------------------------ *
+ * 昼夜主题
+ * ------------------------------------------------------------------ */
+const NIGHT_THEME = {
+  bg: new THREE.Color(0x050a14),
+  hemiSky: new THREE.Color(0x4a6a9c),
+  hemiGround: new THREE.Color(0x060c16),
+  key: new THREE.Color(0xcfe2ff),
+  rim: new THREE.Color(0x4a7cff),
+  fill: new THREE.Color(0x8fbaff),
+  ground: new THREE.Color(0x070d18),
+  city: new THREE.Color(0x7fa8c8),
+  hemiI: 1.45, keyI: 2.0, rimI: 0.9, fillI: 0.6,
+  exposure: 1.5, bloom: 0.55, dust: 0.3, grid: 0.5, neon: 1,
+}
+const DAY_THEME = {
+  bg: new THREE.Color(0xa9c7dc),
+  hemiSky: new THREE.Color(0xe8f4ff),
+  hemiGround: new THREE.Color(0x93a2a4),
+  key: new THREE.Color(0xfff2dc),
+  rim: new THREE.Color(0xd2e6ff),
+  fill: new THREE.Color(0xffe9c9),
+  ground: new THREE.Color(0x8fa5b6),
+  city: new THREE.Color(0xeef3f7),
+  hemiI: 2.4, keyI: 3.2, rimI: 0.55, fillI: 0.45,
+  exposure: 1.18, bloom: 0.18, dust: 0.05, grid: 0.18, neon: 0.5,
+}
+let themeMode = 'night'
+let themeMix = 0
+let themeTarget = 0
+let themeLights = []
+
+function setTheme(mode, immediate = false) {
+  themeMode = mode === 'day' ? 'day' : 'night'
+  themeTarget = themeMode === 'day' ? 1 : 0
+  if (immediate) themeMix = themeTarget
+  document.body.classList.toggle('day', themeMode === 'day')
+  try { localStorage.setItem('night-shift-theme', themeMode) } catch {}
+  const btn = $('#themeToggle')
+  if (btn) {
+    btn.setAttribute('aria-label', themeMode === 'day' ? '切换到夜晚' : '切换到白天')
+    btn.title = btn.getAttribute('aria-label')
+  }
+}
+
+function applyThemeFrame() {
+  themeMix += (themeTarget - themeMix) * 0.07
+  if (Math.abs(themeTarget - themeMix) < 0.002) themeMix = themeTarget
+  const mix = themeMix
+  scene.background.copy(NIGHT_THEME.bg).lerp(DAY_THEME.bg, mix)
+  scene.fog.color.copy(NIGHT_THEME.bg).lerp(DAY_THEME.bg, mix)
+  hemi.color.copy(NIGHT_THEME.hemiSky).lerp(DAY_THEME.hemiSky, mix)
+  hemi.groundColor.copy(NIGHT_THEME.hemiGround).lerp(DAY_THEME.hemiGround, mix)
+  hemi.intensity = NIGHT_THEME.hemiI + (DAY_THEME.hemiI - NIGHT_THEME.hemiI) * mix
+  key.color.copy(NIGHT_THEME.key).lerp(DAY_THEME.key, mix)
+  key.intensity = NIGHT_THEME.keyI + (DAY_THEME.keyI - NIGHT_THEME.keyI) * mix
+  rim.color.copy(NIGHT_THEME.rim).lerp(DAY_THEME.rim, mix)
+  rim.intensity = NIGHT_THEME.rimI + (DAY_THEME.rimI - NIGHT_THEME.rimI) * mix
+  fill.color.copy(NIGHT_THEME.fill).lerp(DAY_THEME.fill, mix)
+  fill.intensity = NIGHT_THEME.fillI + (DAY_THEME.fillI - NIGHT_THEME.fillI) * mix
+  ground.material.color.copy(NIGHT_THEME.ground).lerp(DAY_THEME.ground, mix)
+  grid.material.opacity = NIGHT_THEME.grid + (DAY_THEME.grid - NIGHT_THEME.grid) * mix
+  bloom.strength = NIGHT_THEME.bloom + (DAY_THEME.bloom - NIGHT_THEME.bloom) * mix
+  renderer.toneMappingExposure = NIGHT_THEME.exposure + (DAY_THEME.exposure - NIGHT_THEME.exposure) * mix
+  dust.material.opacity = NIGHT_THEME.dust + (DAY_THEME.dust - NIGHT_THEME.dust) * mix
+  for (const material of cityMats) material.color.copy(NIGHT_THEME.city).lerp(DAY_THEME.city, mix)
+  const neonMaterial = neonSign?.material
+  if (neonMaterial) neonMaterial.opacity = NIGHT_THEME.neon + (DAY_THEME.neon - NIGHT_THEME.neon) * mix
+  for (const item of themeLights) item.light.intensity = item.night + (item.day - item.night) * mix
+}
+
+$('#themeToggle')?.addEventListener('click', () => setTheme(themeMode === 'day' ? 'night' : 'day'))
+try { setTheme(localStorage.getItem('night-shift-theme') === 'day' ? 'day' : 'night', true) } catch { setTheme('night', true) }
 
 /* ------------------------------------------------------------------ *
  * 霓虹招牌
@@ -863,6 +938,7 @@ function buildFloor(team, index, teamAgents) {
     const light = new THREE.PointLight(0xffd8b0, 7, 10, 2)
     light.position.set(lx, 1.95, -1.1)
     group.add(light)
+    themeLights.push({ light, night: 7, day: 2.2 })
   }
 
   // 吊灯之间的电线
@@ -893,9 +969,11 @@ function buildFloor(team, index, teamAgents) {
   const accentLight = new THREE.PointLight(teamColor, 4.6, 14, 2)
   accentLight.position.set(0, 2.2, -3.2)
   group.add(accentLight)
+  themeLights.push({ light: accentLight, night: 4.6, day: 2.2 })
   const warmFill = new THREE.PointLight(0xffb27a, 3.4, 12, 2)
   warmFill.position.set(0, 2.2, 1.5)
   group.add(warmFill)
+  themeLights.push({ light: warmFill, night: 3.4, day: 1.6 })
 
   // 大屏（会话作战面板）
   const dashCanvas = document.createElement('canvas')
@@ -1342,6 +1420,7 @@ function rebuild(list) {
   floors = []
   tokenBoards = []
   monitorScreens = []
+  themeLights = []
   agentsById = new Map()
   const teams = teamList(list)
   teams.forEach((team, index) => {
@@ -1459,6 +1538,7 @@ const clock = new THREE.Clock()
 function tick() {
   const t = clock.getElapsedTime()
   requestAnimationFrame(tick)
+  applyThemeFrame()
 
   const focusedTeam = focusFloor === null ? null : floors.find(floor => floor.index === focusFloor)?.team
   for (const [id, entry] of agentsById) {
