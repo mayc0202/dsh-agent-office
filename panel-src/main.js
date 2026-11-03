@@ -255,11 +255,10 @@ function setTheme(mode, immediate = false) {
   themeTarget = themeMode === 'day' ? 1 : 0
   if (immediate) themeMix = themeTarget
   document.body.classList.toggle('day', themeMode === 'day')
-  try { localStorage.setItem('night-shift-theme', themeMode) } catch {}
-  const btn = $('#themeToggle')
-  if (btn) {
-    btn.setAttribute('aria-label', themeMode === 'day' ? '切换到夜晚' : '切换到白天')
-    btn.title = btn.getAttribute('aria-label')
+  const mark = $('#themeToggle')
+  if (mark) {
+    mark.setAttribute('aria-label', themeMode === 'day' ? '当前：白天' : '当前：夜晚')
+    mark.title = '昼夜跟随系统时间（06:00–18:00 白天）'
   }
 }
 
@@ -289,8 +288,13 @@ function applyThemeFrame() {
   for (const item of themeLights) item.light.intensity = item.night + (item.day - item.night) * mix
 }
 
-$('#themeToggle')?.addEventListener('click', () => setTheme(themeMode === 'day' ? 'night' : 'day'))
-try { setTheme(localStorage.getItem('night-shift-theme') === 'day' ? 'day' : 'night', true) } catch { setTheme('night', true) }
+function syncThemeByClock(immediate = false) {
+  const hour = new Date().getHours()
+  const isDay = hour >= 6 && hour < 18
+  setTheme(isDay ? 'day' : 'night', immediate)
+}
+syncThemeByClock(true)
+setInterval(() => syncThemeByClock(false), 60_000)
 
 /* ------------------------------------------------------------------ *
  * 霓虹招牌

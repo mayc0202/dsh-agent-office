@@ -37,8 +37,7 @@
   #top{position:absolute;left:18px;right:18px;top:16px;height:58px;display:flex;align-items:center;gap:16px;padding:0 18px;border:1px solid var(--line);border-radius:16px;background:var(--panel);backdrop-filter:blur(16px);z-index:10}
   .brand{display:flex;align-items:center;gap:11px;white-space:nowrap}
   .brand .mark{width:26px;height:26px;border-radius:9px;border:0;padding:0;background:conic-gradient(from 210deg,#3de1c6,#5b8cff,#a78bfa,#3de1c6);box-shadow:0 0 18px rgba(61,225,198,.35);position:relative;cursor:pointer;flex:none}
-  .brand .mark:hover{box-shadow:0 0 22px rgba(61,225,198,.55)}
-  .brand .mark:focus-visible{outline:2px solid rgba(61,225,198,.7);outline-offset:2px}
+  .brand .mark{cursor:default}
   .brand .mark .icon{position:absolute;inset:0;margin:auto;width:14px;height:14px;color:#071014;transition:opacity .25s,transform .25s}
   .brand .mark .sun{opacity:0;transform:rotate(-30deg) scale(.8)}
   body.day .brand .mark .moon{opacity:0;transform:rotate(30deg) scale(.8)}
@@ -60,8 +59,8 @@
   .hstat + .hstat{border-left:1px solid var(--line-2);padding-left:18px}
   .hstat b{font-family:var(--mono);font-size:15px;font-weight:800;letter-spacing:-.2px;color:var(--ink);font-variant-numeric:tabular-nums}
   .hstat small{font-family:var(--mono);font-size:9.5px;color:var(--dim-2);letter-spacing:.4px}
-  @media (max-width:1180px){.hstat.tokens{display:none}}
-  @media (max-width:980px){#headStats{display:none}}
+  @media (max-width:1340px){.hstat.tokens{display:none}}
+  @media (max-width:1180px){#headStats{display:none}}
   @keyframes breathe{0%,100%{opacity:.45}50%{opacity:1}}
 
   /* ---------- 面板通用 ---------- */
@@ -229,13 +228,13 @@
   <div id="labels"></div>
 
   <header id="top">
-    <div class="brand"><button class="mark" id="themeToggle" type="button" aria-label="切换昼夜" title="切换昼夜">
+    <div class="brand"><span class="mark" id="themeToggle" title="昼夜跟随系统时间（06:00–18:00 白天）" aria-label="当前时段">
       <svg class="icon moon" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M9.6 1.8a6.3 6.3 0 1 0 4.6 10.4A6.9 6.9 0 0 1 9.6 1.8Z"/></svg>
       <svg class="icon sun" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="8" r="2.6" fill="currentColor" stroke="none"/><path d="M8 1v1.6M8 13.4V15M1 8h1.6M13.4 8H15M2.9 2.9l1.1 1.1M12 12l1.1 1.1M13.1 2.9 12 4M4 12l-1.1 1.1"/></svg>
-    </button><b>夜班</b><span>DSH 实时会话办公室</span></div>
+    </span><b>夜班</b><span>DSH 实时会话办公室</span></div>
     <div id="headStats">
-      <div class="hstat" title="DeepSeek 平台余额"><span>余额</span><b id="headBalance">—</b></div>
       <div class="hstat tokens" title="本周 token 用量"><span>本周</span><b id="headTokens">—</b><small>tokens</small></div>
+      <div class="hstat" title="DeepSeek 平台余额"><span>余额</span><b id="headBalance">—</b></div>
     </div>
     <div class="pills" id="pills"></div>
     <div id="clock"><i></i><span>实时</span></div>
