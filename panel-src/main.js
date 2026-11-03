@@ -551,20 +551,20 @@ function workstation(agent, spot) {
   const seatZ = spot.z + 1.32
   if (seatZ + 0.35 <= D / 2) {
     const chairX = spot.x + 0.35
-    const chairMat = new THREE.MeshStandardMaterial({ color: 0x22303e, roughness: 0.82, metalness: 0.18 })
+    const chairMat = new THREE.MeshStandardMaterial({ color: 0x2a3a4c, roughness: 0.78, metalness: 0.2 })
     const padColor = color.clone().lerp(new THREE.Color(0x1a222c), 0.68)
     // 座椅朝办公桌：靠背在靠镜头这一侧，座面朝桌子
-    const chairSeat = new THREE.Mesh(new THREE.BoxGeometry(0.74, 0.08, 0.72), chairMat)
+    const chairSeat = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.08, 0.7), chairMat)
     chairSeat.position.set(chairX, 0.45, seatZ)
     group.add(chairSeat)
-    const cushion = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.05, 0.6), new THREE.MeshStandardMaterial({ color: padColor, roughness: 0.85 }))
+    const cushion = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.05, 0.58), new THREE.MeshStandardMaterial({ color: padColor, roughness: 0.85 }))
     cushion.position.set(chairX, 0.5, seatZ)
     group.add(cushion)
-    const chairBack = new THREE.Mesh(new THREE.BoxGeometry(0.74, 0.32, 0.06), chairMat)
+    const chairBack = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.28, 0.06), chairMat)
     chairBack.position.set(chairX, 0.63, seatZ + 0.33)
     group.add(chairBack)
-    for (const dx of [-0.31, 0.31]) {
-      for (const dz of [-0.29, 0.29]) {
+    for (const dx of [-0.28, 0.28]) {
+      for (const dz of [-0.26, 0.26]) {
         const chairLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.026, 0.45, 8), metalMat)
         chairLeg.position.set(chairX + dx, 0.225, seatZ + dz)
         group.add(chairLeg)
@@ -982,9 +982,9 @@ function buildFloor(team, index, teamAgents) {
     // 猫咪坐在工位前的办公椅上；靠前边缘放不下时退回工位右侧
     const chairZ = spot.z + 1.32
     const canSit = chairZ + 0.35 <= D / 2
-    const robot = robotFor(agent, i, canSit ? 0.58 : 0)
+    const robot = robotFor(agent, i, canSit ? 0.5 : 0)
     if (canSit) {
-      robot.position.set(spot.x + 0.35, 0.02, chairZ + 0.05)
+      robot.position.set(spot.x + 0.35, 0.02, chairZ)
     } else {
       const catHalf = 0.4
       const catX = clamp(spot.x + 1.375, -W / 2 + catHalf + 0.05, W / 2 - catHalf - 0.05)
