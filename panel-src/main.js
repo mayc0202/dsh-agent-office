@@ -334,12 +334,12 @@ function robotFor(agent, index = 0) {
   const color = new THREE.Color(agent.color || '#3de1c6')
   const tint = color.clone().lerp(new THREE.Color(0xffffff), 0.28)
   const accent = new THREE.Color((STATUS[agent.status] ?? STATUS.resting).color)
-  const baseY = 0.74
+  const baseY = 0.4
   const expr = FACE_FOR_STATUS[agent.status] ?? 'default'
 
   // 接触阴影
   const shadow = new THREE.Mesh(
-    new THREE.PlaneGeometry(1.25, 1.25),
+    new THREE.PlaneGeometry(0.9, 0.9),
     new THREE.MeshBasicMaterial({ map: shadowTexture, transparent: true, opacity: 0.62, depthWrite: false }),
   )
   shadow.rotation.x = -Math.PI / 2
@@ -355,13 +355,13 @@ function robotFor(agent, index = 0) {
     toneMapped: false,
   })
   const face = new THREE.Sprite(faceMat)
-  face.scale.set(1.08, 1.08, 1)
+  face.scale.set(0.75, 0.75, 1)
   face.position.y = baseY
   group.add(face)
 
   // 状态环 + 地面光晕
   const ring = new THREE.Mesh(
-    new THREE.RingGeometry(0.42, 0.47, 44),
+    new THREE.RingGeometry(0.3, 0.34, 44),
     new THREE.MeshBasicMaterial({ color: accent, transparent: true, opacity: 0.9, side: THREE.DoubleSide }),
   )
   ring.rotation.x = -Math.PI / 2
@@ -371,7 +371,7 @@ function robotFor(agent, index = 0) {
     map: glowTexture, color: accent, transparent: true, opacity: 0.3,
     blending: THREE.AdditiveBlending, depthWrite: false,
   }))
-  glow.scale.set(1.4, 1.4, 1)
+  glow.scale.set(0.95, 0.95, 1)
   glow.position.y = 0.05
   group.add(glow)
 
@@ -381,8 +381,8 @@ function robotFor(agent, index = 0) {
     const z = new THREE.Sprite(new THREE.SpriteMaterial({
       map: zTexture, color: 0xbfe8ff, transparent: true, depthWrite: false, toneMapped: false,
     }))
-    z.scale.setScalar(0.2)
-    z.position.set(0.3, baseY + 0.62, 0.05)
+    z.scale.setScalar(0.15)
+    z.position.set(0.24, baseY + 0.5, 0.05)
     z.visible = false
     group.add(z)
     zzz.push(z)
@@ -403,8 +403,8 @@ function robotFor(agent, index = 0) {
   const badgeTexture = new THREE.CanvasTexture(badgeCanvas)
   badgeTexture.colorSpace = THREE.SRGBColorSpace
   const badge = new THREE.Sprite(new THREE.SpriteMaterial({ map: badgeTexture, transparent: true, depthWrite: false }))
-  badge.scale.set(0.24, 0.24, 1)
-  badge.position.y = baseY + 0.78
+  badge.scale.set(0.2, 0.2, 1)
+  badge.position.y = baseY + 0.6
   badge.visible = (STATUS[agent.status] ?? STATUS.resting) === 'need_me'
   group.add(badge)
 
@@ -418,15 +418,15 @@ function robotFor(agent, index = 0) {
   })
   const label = new CSS2DObject(labelDiv)
   label.center.set(0.5, 1.15)
-  label.position.set(index % 2 === 0 ? -0.08 : 0.08, baseY + 0.82 + (index % 3) * 0.06, 0)
+  label.position.set(index % 2 === 0 ? -0.06 : 0.06, baseY + 0.62 + (index % 3) * 0.05, 0)
   group.add(label)
 
   // 命中体
   const hit = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.62, 0.62, 1.25, 8),
+    new THREE.CylinderGeometry(0.46, 0.46, 0.95, 8),
     new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }),
   )
-  hit.position.y = 0.62
+  hit.position.y = 0.45
   hit.userData.agentId = agent.id
   group.add(hit)
 
@@ -942,8 +942,10 @@ function buildFloor(team, index, teamAgents) {
     ws.scale.setScalar(1.15)
     group.add(ws)
     const robot = robotFor(agent, i)
-    robot.scale.setScalar(1.22)
-    robot.position.set(spot.x + 0.62, 0.02, spot.z + 0.72)
+    // 猫咪放在工位右侧，避免和桌子重叠
+    const catHalf = 0.4
+    const catX = clamp(spot.x + 1.375, -W / 2 + catHalf + 0.05, W / 2 - catHalf - 0.05)
+    robot.position.set(catX, 0.02, spot.z + 0.55)
     robot.userData.floorIndex = index
     group.add(robot)
     children.push({ agent, robot })
@@ -1341,7 +1343,7 @@ function tick() {
 
     // 呼吸/浮动
     const breathe = sleeping ? 1 + Math.sin(t * 1.5 + phase) * 0.02 : 1 + Math.sin(t * 2.2 + phase) * 0.012
-    parts.face.scale.set(1.08 * breathe, 1.08 * breathe, 1)
+    parts.face.scale.set(0.75 * breathe, 0.75 * breathe, 1)
 
     const statusColor = STATUS[status]?.color ?? STATUS.resting.color
     parts.ring.material.color.set(statusColor)
@@ -1359,14 +1361,14 @@ function tick() {
       z.visible = sleeping
       if (!sleeping) continue
       const p = ((t * 0.42 + k * 0.34) % 1)
-      z.position.set(0.3 + p * 0.2, parts.baseY + 0.55 + p * 0.6, 0.06)
+      z.position.set(0.24 + p * 0.16, parts.baseY + 0.45 + p * 0.45, 0.06)
       z.material.opacity = Math.sin(p * Math.PI) * 0.95
-      z.scale.setScalar(0.14 + p * 0.16)
+      z.scale.setScalar(0.1 + p * 0.12)
     }
 
     // 等待确认感叹号
     parts.badge.visible = status === 'need_me'
-    if (parts.badge.visible) parts.badge.position.y = parts.baseY + 0.95 + Math.sin(t * 4 + phase) * 0.04
+    if (parts.badge.visible) parts.badge.position.y = parts.baseY + 0.62 + Math.sin(t * 4 + phase) * 0.025
 
     const labelEl = parts.label.element
     if (labelEl) labelEl.classList.toggle('on', id === selectedId)
