@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * 开发/自测用最小服务器：不安装 DSH 插件也能打开面板。
- *   node dev/dev-server.mjs        # http://127.0.0.1:8899/night-shift/
+ *   node dev/dev-server.mjs        # http://127.0.0.1:8899/catora/
  */
 import { createServer } from 'node:http'
 import { readFileSync } from 'node:fs'
@@ -12,7 +12,7 @@ const store = createNightShiftStore({})
 
 const server = createServer(async (req, res) => {
   const path = new URL(req.url ?? '/', 'http://dev.local').pathname
-  if (path === '/night-shift' || path === '/night-shift/') {
+  if (path === '/catora' || path === '/catora/') {
     try {
       const panel = readFileSync(new URL('../lib/panel.html', import.meta.url), 'utf8')
       res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' })
@@ -23,7 +23,7 @@ const server = createServer(async (req, res) => {
     }
     return
   }
-  if (path === '/night-shift/api/balance') {
+  if (path === '/catora/api/balance') {
     try {
       const payload = await fetchDeepSeekBalance({})
       res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' })
@@ -34,7 +34,7 @@ const server = createServer(async (req, res) => {
     }
     return
   }
-  if (path === '/night-shift/api/state') {
+  if (path === '/catora/api/state') {
     try {
       res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' })
       res.end(JSON.stringify(store.state()))
@@ -49,5 +49,5 @@ const server = createServer(async (req, res) => {
 })
 
 server.listen(port, '127.0.0.1', () => {
-  console.log(`Night Shift dev server: http://127.0.0.1:${port}/night-shift/  (sessions: ${store.sessionsDir})`)
+  console.log(`Catora dev server: http://127.0.0.1:${port}/catora/  (sessions: ${store.sessionsDir})`)
 })

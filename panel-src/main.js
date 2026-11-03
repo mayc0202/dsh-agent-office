@@ -14,7 +14,7 @@ import faceSurprised from './assets/exp-surprised.png'
 import faceThinking from './assets/exp-thinking.png'
 import faceLoved from './assets/exp-loved.png'
 
-const API = '/night-shift/api/state'
+const API = '/catora/api/state'
 const FLOOR_GAP = 4.0
 const W = 9
 const D = 6.5
@@ -358,7 +358,7 @@ for (const [name, src] of Object.entries(FACE_SRC)) {
   texture.colorSpace = THREE.SRGBColorSpace
   faceTextures[name] = texture
 }
-const CUSTOM_FACE_KEY = 'night-shift-custom-face'
+const CUSTOM_FACE_KEY = 'catora-custom-face'
 let customFaceTexture = null
 const FACE_FOR_STATUS = {
   working: 'happy',
@@ -1769,7 +1769,7 @@ function toastEvent(agent, status, text) {
 async function refreshBalance() {
   const headBalance = $('#headBalance')
   try {
-    const response = await fetch('/night-shift/api/balance', { cache: 'no-store' })
+    const response = await fetch('/catora/api/balance', { cache: 'no-store' })
     const data = await response.json()
     if (!headBalance) return
     if (!data?.ok) {

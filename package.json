@@ -1,7 +1,7 @@
 {
-  "name": "dsh-night-shift",
-  "version": "3.3.6",
-  "description": "Night Shift：把 DeepSeek Harness 的全部会话变成一间实时 3D 办公室（Three.js 自绘面板，本地插件，无外部服务）。",
+  "name": "dsh-catora-office",
+  "version": "4.0.0",
+  "description": "Catora：把 DeepSeek Harness 会话变成实时 3D 办公室（本地插件版，无外部服务）。",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
@@ -40,11 +40,10 @@
   "keywords": [
     "dsh",
     "dsh-plugin",
-    "deepseek-harness",
-    "night-shift",
+    "catora",
     "3d",
-    "visualization",
-    "cordis"
+    "office",
+    "deepseek-harness"
   ],
   "license": "MIT",
   "engines": {
@@ -52,11 +51,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mayc0202/dsh-night-shift.git"
+    "url": "git+https://github.com/mayc0202/dsh-catora-office.git"
   },
-  "homepage": "https://github.com/mayc0202/dsh-night-shift#readme",
+  "homepage": "https://github.com/mayc0202/dsh-catora-office#readme",
   "bugs": {
-    "url": "https://github.com/mayc0202/dsh-night-shift/issues"
+    "url": "https://github.com/mayc0202/dsh-catora-office/issues"
   },
   "scripts": {
     "dev": "node dev/dev-server.mjs",
