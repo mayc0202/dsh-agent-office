@@ -62,21 +62,22 @@
   #board .panel__body{overflow:auto;scrollbar-width:thin;scrollbar-color:#242a34 transparent}
   #board .panel__body::-webkit-scrollbar{width:6px}
   #board .panel__body::-webkit-scrollbar-thumb{background:#242a34;border-radius:3px}
-  .row{display:flex;align-items:center;gap:10px;padding:10px 10px;border-radius:12px;cursor:pointer;transition:background .15s}
+  .row{display:flex;align-items:center;gap:10px;padding:10px 10px;border-radius:12px;cursor:pointer;transition:background .15s;appearance:none;width:100%;border:0;background:transparent;color:inherit;font:inherit;text-align:left}
   .row:hover{background:rgba(255,255,255,.045)}
+  .row:focus-visible,.floor:focus-visible{outline:2px solid rgba(61,225,198,.55);outline-offset:1px}
   .row.on{background:rgba(61,225,198,.1);box-shadow:inset 0 0 0 1px rgba(61,225,198,.28)}
   .dot{width:9px;height:9px;border-radius:50%;flex:none}
-  .row__main{flex:1;min-width:0}
+  .row__main{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
   .row__name{font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .row__sub{font-family:var(--mono);font-size:10.5px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
-  .row__bar{height:3px;border-radius:2px;background:rgba(255,255,255,.06);margin-top:6px;overflow:hidden}
+  .row__bar{display:block;height:3px;border-radius:2px;background:rgba(255,255,255,.06);margin-top:4px;overflow:hidden}
   .row__bar i{display:block;height:100%;border-radius:2px;background:linear-gradient(90deg,var(--acc-2),var(--acc))}
   .row__pct{font-family:var(--mono);font-size:13px;color:var(--ink);flex:none;min-width:42px;text-align:right}
 
   /* ---------- 楼层 ---------- */
   #floors{left:18px;bottom:18px;width:326px}
   #floors .panel__body{display:flex;flex-direction:column;gap:4px}
-  .floor{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;cursor:pointer;font-size:13px}
+  .floor{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;cursor:pointer;font-size:13px;appearance:none;width:100%;border:0;background:transparent;color:inherit;font:inherit;text-align:left}
   .floor:hover{background:rgba(255,255,255,.045)}
   .floor.on{background:rgba(61,225,198,.1)}
   .floor__no{width:22px;height:22px;border-radius:7px;background:rgba(255,255,255,.06);display:grid;place-items:center;font-family:var(--mono);font-size:11px;color:var(--dim)}
@@ -118,6 +119,8 @@
   .evt b{color:var(--ink);font-weight:600;flex:none;max-width:150px;overflow:hidden;text-overflow:ellipsis}
   .evt span{overflow:hidden;text-overflow:ellipsis}
   .evt.empty{color:var(--dim-2);font-family:var(--mono);font-size:11px;letter-spacing:1px}
+  .empty{padding:16px 10px 18px;text-align:center;font-family:var(--mono);font-size:11px;line-height:1.9;color:var(--dim)}
+  .empty span{color:var(--dim-2)}
 
   /* ---------- 用量 ---------- */
   #meter{right:18px;bottom:18px;width:346px}
@@ -128,8 +131,15 @@
   #meter .sub b{color:var(--ink);font-weight:500}
 
   /* ---------- 提示/空态 ---------- */
+  #focusChip{position:absolute;left:50%;top:92px;transform:translateX(-50%);z-index:11;display:flex;align-items:center;gap:10px;padding:6px 6px 6px 14px;border:1px solid rgba(61,225,198,.3);border-radius:999px;background:rgba(12,18,22,.86);backdrop-filter:blur(14px);font-family:var(--mono);font-size:11.5px;color:var(--ink);white-space:nowrap}
+  #focusChip[hidden]{display:none}
+  #focusChip .focus__dot{width:7px;height:7px;border-radius:50%;background:var(--acc);box-shadow:0 0 8px var(--acc)}
+  #focusChip button{height:26px;padding:0 12px;border-radius:999px;border:0;background:rgba(61,225,198,.16);color:var(--acc);font-family:var(--mono);font-size:11px;font-weight:600;cursor:pointer}
+  #focusChip button:hover{background:rgba(61,225,198,.26)}
+  #focusChip button:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
   #hint{position:absolute;left:50%;top:92px;transform:translateX(-50%);z-index:8;font-family:var(--mono);font-size:11px;letter-spacing:1.2px;color:rgba(138,148,163,.85);background:rgba(12,15,20,.66);border:1px solid var(--line);border-radius:999px;padding:7px 14px;backdrop-filter:blur(12px);transition:opacity .8s;white-space:nowrap}
   #hint.hide{opacity:0}
+  #hint.lower{top:auto;bottom:20px}
   #offline{position:absolute;left:50%;top:88px;transform:translateX(-50%);z-index:20;display:none;font-family:var(--mono);font-size:11.5px;color:var(--amber);background:rgba(255,184,107,.12);border:1px solid rgba(255,184,107,.35);border-radius:999px;padding:6px 14px}
   #offline.show{display:block}
   .lbl{position:absolute;transform:translate(-50%,-100%);padding:3px 8px;border-radius:999px;border:1px solid rgba(255,255,255,.14);background:rgba(8,11,15,.82);color:var(--ink);font-family:var(--mono);font-size:10.5px;white-space:nowrap;backdrop-filter:blur(6px);transition:border-color .2s,transform .2s}
@@ -202,7 +212,12 @@
     </div>
   </footer>
 
-  <div id="hint">拖动旋转 · 滚轮缩放 · 点击会话查看详情</div>
+  <div id="focusChip" hidden>
+    <span class="focus__dot"></span>
+    <span id="focusText">正在查看 1 层</span>
+    <button type="button" id="focusBack">全局视角</button>
+  </div>
+  <div id="hint">左键点楼层聚焦 · 右键返回全局 · 拖动旋转 · 滚轮缩放</div>
   <div id="offline">正在连接 DSH 会话数据…</div>
 </div>
 <script>/*__BUNDLE__*/</script>
