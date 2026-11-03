@@ -864,6 +864,32 @@ function buildFloor(team, index, teamAgents) {
     light.position.set(lx, 1.95, -1.1)
     group.add(light)
   }
+
+  // 吊灯之间的电线
+  const cableMat = new THREE.MeshStandardMaterial({ color: 0x090c10, roughness: 0.5, metalness: 0.55 })
+  const cableZ = -1.1
+  const cablePoints = [
+    new THREE.Vector3(-W / 2 + 0.12, 2.94, cableZ),
+    new THREE.Vector3(-3.5, 2.9, cableZ),
+    new THREE.Vector3(-0.9, 2.7, cableZ),
+    new THREE.Vector3(1.7, 2.9, cableZ),
+    new THREE.Vector3(2.6, 2.76, cableZ),
+    new THREE.Vector3(3.5, 2.9, cableZ),
+    new THREE.Vector3(W / 2 - 0.12, 2.94, cableZ),
+  ]
+  const cableCurve = new THREE.CatmullRomCurve3(cablePoints)
+  const cable = new THREE.Mesh(new THREE.TubeGeometry(cableCurve, 64, 0.016, 6, false), cableMat)
+  group.add(cable)
+  // 每个灯从主电线垂下的短线
+  for (const lx of [-3.5, 1.7, 3.5]) {
+    const drop = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.16, 6), cableMat)
+    drop.position.set(lx, 2.82, cableZ)
+    group.add(drop)
+    const clip = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.035, 0.05), cableMat)
+    clip.position.set(lx, 2.9, cableZ)
+    group.add(clip)
+  }
+
   const accentLight = new THREE.PointLight(teamColor, 4.6, 14, 2)
   accentLight.position.set(0, 2.2, -3.2)
   group.add(accentLight)
