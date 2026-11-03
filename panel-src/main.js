@@ -1289,10 +1289,14 @@ function renderCard(agent) {
   const status = STATUS[agent.status] ?? STATUS.resting
   const floor = floors.find(item => item.team === agent.team)
   $('#cardTeam').textContent = floor === undefined ? agent.team : `楼层 ${floor.index + 1} · ${agent.team}`
-  $('#cardGlyph').textContent = '◆'
-  $('#cardGlyph').style.background = `linear-gradient(150deg, ${agent.color}55, ${agent.color}14)`
-  $('#cardGlyph').style.color = agent.color
-  $('#cardGlyph').style.border = `1px solid ${agent.color}66`
+  const glyphEl = $('#cardGlyph')
+  glyphEl.textContent = ''
+  glyphEl.style.backgroundImage = `url(${faceDefault})`
+  glyphEl.style.backgroundSize = '82% 82%'
+  glyphEl.style.backgroundRepeat = 'no-repeat'
+  glyphEl.style.backgroundPosition = 'center'
+  glyphEl.style.backgroundColor = `${agent.color}22`
+  glyphEl.style.border = `1px solid ${agent.color}66`
   $('#cardName').textContent = agent.name
   $('#cardSub').textContent = agent.schedule
   const statusEl = $('#cardStatus')
