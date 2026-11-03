@@ -118,53 +118,74 @@ horizon.rotation.x = -Math.PI / 2
 horizon.position.y = -1.55
 scene.add(horizon)
 
-/* 稀疏的数字雨（Matrix 风格） */
-const GLYPHS = '0123456789ABCDEF'
-const glyphTextures = [...GLYPHS].map(ch => {
+/* 夜晚写字楼天际线 */
+const city = new THREE.Group()
+city.position.y = -1.55
+scene.add(city)
+const windowTexture = (() => {
   const canvas = document.createElement('canvas')
-  canvas.width = canvas.height = 96
+  canvas.width = 64
+  canvas.height = 128
   const ctx = canvas.getContext('2d')
-  ctx.clearRect(0, 0, 96, 96)
-  ctx.font = '700 72px ui-monospace, Menlo, monospace'
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
-  ctx.shadowColor = 'rgba(80,255,170,.9)'
-  ctx.shadowBlur = 14
-  ctx.fillStyle = '#d8ffe9'
-  ctx.fillText(ch, 48, 52)
+  ctx.fillStyle = '#000000'
+  ctx.fillRect(0, 0, 64, 128)
+  for (let y = 6; y < 124; y += 9) {
+    for (let x = 5; x < 59; x += 8) {
+      if (Math.random() > 0.34) {
+        const r = Math.random()
+        ctx.fillStyle = r > 0.82 ? 'rgba(255,205,150,.95)'
+          : r > 0.4 ? 'rgba(120,190,255,.95)' : 'rgba(90,230,255,.8)'
+        ctx.fillRect(x, y, 3.4, 5)
+      }
+    }
+  }
   const texture = new THREE.CanvasTexture(canvas)
   texture.colorSpace = THREE.SRGBColorSpace
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping
   return texture
-})
-const matrixColumns = []
-for (let c = 0; c < 20; c++) {
+})()
+const cityPalette = [0x0a1a2e, 0x081524, 0x0c2038]
+const cityMats = cityPalette.map((emissive, i) => new THREE.MeshStandardMaterial({
+  color: 0x050b14,
+  roughness: 0.8,
+  metalness: 0.35,
+  emissive,
+  emissiveIntensity: 0.85 + i * 0.2,
+  emissiveMap: windowTexture,
+}))
+const cityBeacons = []
+for (let i = 0; i < 96; i++) {
+  const near = i < 56
   const angle = Math.random() * Math.PI * 2
-  const radius = 9 + Math.random() * 24
-  const x = Math.cos(angle) * radius
-  const z = Math.sin(angle) * radius
-  const speed = 0.7 + Math.random() * 1.5
-  const length = 3 + Math.floor(Math.random() * 4)
-  const phase = Math.random() * 24
-  const glyphs = []
-  for (let i = 0; i < length; i++) {
-    const material = new THREE.SpriteMaterial({
-      map: glyphTextures[Math.floor(Math.random() * glyphTextures.length)],
-      color: i === 0 ? 0xb8ffe0 : 0x2f9f68,
-      transparent: true,
-      opacity: Math.max(0.08, 0.6 - i * 0.09),
-      depthWrite: false,
-      toneMapped: false,
-    })
-    const sprite = new THREE.Sprite(material)
-    sprite.scale.setScalar(0.5 - i * 0.025)
-    sprite.position.set(x, 8, z)
-    scene.add(sprite)
-    glyphs.push(sprite)
+  const radius = near ? 15 + Math.random() * 20 : 36 + Math.random() * 36
+  const height = near ? 3 + Math.random() * 13 : 6 + Math.random() * 28
+  const width = 1.6 + Math.random() * 4.2
+  const depth = 1.6 + Math.random() * 4.2
+  const building = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), cityMats[i % 3])
+  building.position.set(Math.cos(angle) * radius, height / 2, Math.sin(angle) * radius)
+  building.rotation.y = Math.random() * Math.PI
+  city.add(building)
+  if (Math.random() < 0.4) {
+    const antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.9, 5), new THREE.MeshBasicMaterial({ color: 0x8fb4d8 }))
+    antenna.position.set(building.position.x, height + 0.45, building.position.z)
+    city.add(antenna)
+    const beaconColor = [0xff5a5a, 0x5be7ff, 0xffc46b][i % 3]
+    const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 8), new THREE.MeshBasicMaterial({ color: beaconColor, transparent: true, opacity: 0.8 }))
+    beacon.position.set(building.position.x, height + 0.95, building.position.z)
+    beacon.userData.baseColor = beacon.material.color.clone()
+    beacon.userData.phase = Math.random() * Math.PI * 2
+    city.add(beacon)
+    cityBeacons.push(beacon)
   }
-  matrixColumns.push({ x, z, speed, length, phase, glyphs })
+  if (Math.random() < 0.28) {
+    const stripColor = [0x2f9fff, 0x5be7ff, 0xb18cff][i % 3]
+    const strip = new THREE.Mesh(new THREE.BoxGeometry(0.06, height * 0.72, 0.06), new THREE.MeshBasicMaterial({ color: stripColor, transparent: true, opacity: 0.7 }))
+    strip.position.set(building.position.x + Math.cos(angle + Math.PI / 2) * (width / 2 + 0.03), height * 0.5, building.position.z + Math.sin(angle + Math.PI / 2) * (depth / 2 + 0.03))
+    city.add(strip)
+  }
 }
 
-/* 星尘 *//* 星尘 */
+/* 星尘 *//* 星尘 *//* 星尘 */
 const dust = (() => {
   const count = 420
   const positions = new Float32Array(count * 3)
@@ -620,13 +641,21 @@ function buildFloor(team, index, teamAgents) {
 
   // 背墙
   const wall = new THREE.Mesh(
-    new THREE.BoxGeometry(W, 3.15, 0.24),
-    new THREE.MeshStandardMaterial({ color: 0x1a1410, roughness: 0.82, metalness: 0.26 }),
+    new THREE.BoxGeometry(W, 3.15, 0.16),
+    new THREE.MeshPhysicalMaterial({
+      color: 0x8fc8ff,
+      metalness: 0.02,
+      roughness: 0.05,
+      transparent: true,
+      opacity: 0.085,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+    }),
   )
-  wall.position.set(0, 1.57, -D / 2 + 0.12)
+  wall.position.set(0, 1.57, -D / 2 + 0.1)
   group.add(wall)
   for (let mx = -W / 2 + 1; mx < W / 2; mx += 1.5) {
-    const seam = new THREE.Mesh(new THREE.BoxGeometry(0.025, 2.9, 0.02), new THREE.MeshBasicMaterial({ color: 0x1d2a3a }))
+    const seam = new THREE.Mesh(new THREE.BoxGeometry(0.025, 2.9, 0.02), new THREE.MeshBasicMaterial({ color: 0x2a4a6a, transparent: true, opacity: 0.3 }))
     seam.position.set(mx, 1.57, -D / 2 + 0.25)
     group.add(seam)
   }
@@ -746,6 +775,7 @@ function buildFloor(team, index, teamAgents) {
   cageEdges.position.y = 0.8
   serverRoom.add(cageEdges)
   const rackMat2 = new THREE.MeshStandardMaterial({ color: 0x0b1118, roughness: 0.55, metalness: 0.6 })
+  const serverLeds = []
   for (const dx of [-0.3, 0.3]) {
     const rack2 = new THREE.Mesh(new THREE.BoxGeometry(0.4, 1.0, 0.4), rackMat2)
     rack2.position.set(dx, 0.56, 0)
@@ -756,21 +786,25 @@ function buildFloor(team, index, teamAgents) {
         new THREE.MeshBasicMaterial({ color: [0x3de1c6, 0x7dd3a0, 0xffb86b, 0x6f9bff][r % 4] }),
       )
       led2.position.set(dx, 0.24 + r * 0.17, 0.21)
+      led2.userData.baseColor = led2.material.color.clone()
+      led2.userData.phase = r * 1.3 + dx * 4
+      serverLeds.push(led2)
       serverRoom.add(led2)
     }
   }
+  group.userData.serverLeds = serverLeds
   group.add(serverRoom)
 
   // 彩色货架（参考原版的彩色格子）
   const shelf = new THREE.Group()
-  shelf.position.set(-W / 2 + 0.45, 0, -D / 2 + 1.2)
+  shelf.position.set(-W / 2 + 0.75, 0, -D / 2 + 1.55)
   const shelfMat = new THREE.MeshStandardMaterial({ color: 0x1b2430, roughness: 0.7, metalness: 0.3 })
   for (const y of [0.5, 1.15, 1.8]) {
-    const plank = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.05, 0.35), shelfMat)
+    const plank = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.05, 0.35), shelfMat)
     plank.position.y = y * 0.7
     shelf.add(plank)
   }
-  for (const sx of [-0.58, 0.58]) {
+  for (const sx of [-0.44, 0.44]) {
     const side = new THREE.Mesh(new THREE.BoxGeometry(0.05, 1.4, 0.35), shelfMat)
     side.position.set(sx, 0.7, 0)
     shelf.add(side)
@@ -781,7 +815,7 @@ function buildFloor(team, index, teamAgents) {
       new THREE.BoxGeometry(0.15, 0.11, 0.15),
       new THREE.MeshStandardMaterial({ color: blockColors[i % blockColors.length], roughness: 0.55, metalness: 0.1 }),
     )
-    block.position.set(-0.4 + (i % 6) * 0.17, 0.42 + Math.floor(i / 6) * 0.44, 0.02 + ((i * 7) % 3) * 0.04)
+    block.position.set(-0.3 + (i % 6) * 0.12, 0.42 + Math.floor(i / 6) * 0.44, 0.02 + ((i * 7) % 3) * 0.04)
     shelf.add(block)
   }
   group.add(shelf)
@@ -1338,15 +1372,21 @@ function tick() {
     if (labelEl) labelEl.classList.toggle('on', id === selectedId)
   }
 
-  // 数字雨下落
-  for (const col of matrixColumns) {
-    for (let i = 0; i < col.length; i++) {
-      const glyph = col.glyphs[i]
-      const cycle = 24
-      const y = 18 - ((col.phase + t * col.speed + i * 0.95) % cycle)
-      glyph.position.set(col.x, y, col.z)
-      glyph.material.opacity = Math.max(0, (i === 0 ? 0.85 : 0.5 - i * 0.08)) * (0.55 + 0.45 * Math.sin(t * 3 + i + col.phase))
+  // 机柜 LED 闪烁
+  for (const floor of floors) {
+    const leds = floor.group.userData.serverLeds
+    if (!leds) continue
+    for (const led of leds) {
+      const blink = 0.2 + 0.8 * (0.5 + 0.5 * Math.sin(t * 5.5 + led.userData.phase + floor.index * 2))
+      led.material.color.copy(led.userData.baseColor).multiplyScalar(0.25 + blink * 0.9)
     }
+  }
+
+  // 城市信标闪烁
+  for (const beacon of cityBeacons) {
+    const pulse = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(t * 1.8 + beacon.userData.phase))
+    beacon.material.opacity = pulse
+    beacon.material.color.copy(beacon.userData.baseColor).multiplyScalar(0.6 + pulse * 0.8)
   }
 
   if (cameraGoal !== null) {
