@@ -1656,6 +1656,8 @@ const musicPanel = $('#musicPanel')
 const musicToggle = $('#musicToggle')
 const musicUse = $('#musicUse')
 const musicVol = $('#musicVol')
+const musicFile = $('#musicFile')
+const musicFileBtn = $('#musicFileBtn')
 
 function readStore(key) {
   try { return localStorage.getItem(key) ?? '' } catch { return '' }
@@ -1665,6 +1667,20 @@ function writeStore(key, value) {
 }
 function musicLabel(text) {
   if (musicStatus) musicStatus.textContent = text
+}
+function looksLikeWebPage(url) {
+  try {
+    const parsed = new URL(url)
+    const host = parsed.hostname.toLowerCase()
+    const path = parsed.pathname.toLowerCase()
+    const pageHosts = /(douyin|iesdouyin|bilibili|youtube|youtu\.be|music\.163|y\.qq\.com|kugou|kuwo|spotify|soundcloud)/i
+    const audioExt = /\.(mp3|m4a|aac|ogg|oga|wav|flac|opus|weba)(\?|$)/i
+    if (pageHosts.test(host)) return true
+    if (audioExt.test(path)) return false
+    return true
+  } catch {
+    return true
+  }
 }
 function updateMusicButton() {
   const playing = !bgm.paused && !bgm.ended && bgm.currentSrc !== ''
@@ -1678,6 +1694,10 @@ function setMusicSource(value, autoplay = false) {
   if (url === '') {
     musicLabel('请先粘贴一个音乐链接')
     musicUrlInput?.focus()
+    return false
+  }
+  if (looksLikeWebPage(url)) {
+    musicLabel('这是网页链接，不是音频直链：抖音/网页里的 BGM 不能直接播放，请导出成 mp3/m4a 直链，或点「本地文件」。')
     return false
   }
   bgm.src = url
@@ -1707,7 +1727,19 @@ musicToggle?.addEventListener('click', () => {
 })
 bgm.addEventListener('play', () => { musicLabel('正在播放'); updateMusicButton() })
 bgm.addEventListener('pause', () => { updateMusicButton() })
-bgm.addEventListener('error', () => musicLabel('加载失败：请检查链接是否为可直接播放的音频直链'))
+bgm.addEventListener('error', () => musicLabel('加载失败：链接不是音频直链或格式不支持；网页/抖音链接请用「本地文件」'))
+musicFileBtn?.addEventListener('click', () => musicFile?.click())
+musicFile?.addEventListener('change', () => {
+  const file = musicFile.files?.[0]
+  if (!file) return
+  const localUrl = URL.createObjectURL(file)
+  bgm.src = localUrl
+  bgm.load()
+  if (musicUrlInput) musicUrlInput.value = ''
+  bgm.play()
+    .then(() => musicLabel(`正在播放本地文件：${file.name}`))
+    .catch(() => musicLabel('本地文件播放失败：浏览器可能不支持该音频格式'))
+})
 musicVol?.addEventListener('input', () => {
   const value = Number(musicVol.value) || 0
   bgm.volume = Math.max(0, Math.min(1, value))
@@ -1735,9 +1767,14 @@ if (queryMusic) {
   setMusicSource(queryMusic, false)
   musicLabel('已从链接加载，点「播放」开始')
 } else if (storedMusic) {
-  bgm.src = storedMusic
-  if (musicUrlInput) musicUrlInput.value = storedMusic
-  musicLabel('已保存音乐，点「播放」开始')
+  if (looksLikeWebPage(storedMusic)) {
+    if (musicUrlInput) musicUrlInput.value = storedMusic
+    musicLabel('上次保存的是网页链接，不能直接播放；请换音频直链或选择本地文件。')
+  } else {
+    bgm.src = storedMusic
+    if (musicUrlInput) musicUrlInput.value = storedMusic
+    musicLabel('已保存音乐，点「播放」开始')
+  }
 } else {
   musicLabel('支持直接粘贴音频链接；也可以用 ?music=链接 打开页面。')
 }

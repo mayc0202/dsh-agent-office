@@ -298,9 +298,11 @@
     <div class="mp__row">
       <button type="button" id="musicUse" class="mp__btn primary">使用并播放</button>
       <button type="button" id="musicToggle" class="mp__btn">播放</button>
+      <button type="button" id="musicFileBtn" class="mp__btn">本地文件</button>
+      <input id="musicFile" type="file" accept="audio/*" hidden />
     </div>
     <div class="mp__row"><span class="mp__head" style="margin:0;letter-spacing:1px">音量</span><input id="musicVol" type="range" min="0" max="1" step="0.01" value="0.35" aria-label="音量" /></div>
-    <div id="musicStatus" class="mp__status">支持直接粘贴音频链接；也可以用 ?music=链接 打开页面。</div>
+    <div id="musicStatus" class="mp__status">支持音频直链（mp3 / m4a / ogg）或选择本地文件；抖音/网页链接不能直接播放。</div>
   </div>
 
   <div id="hint">左键点楼层聚焦 · 右键返回全局 · 拖动旋转 · 滚轮缩放</div>

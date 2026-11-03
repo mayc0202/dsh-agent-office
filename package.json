@@ -1,6 +1,6 @@
 {
   "name": "dsh-night-shift",
-  "version": "2.7.0",
+  "version": "2.7.1",
   "description": "Night Shift：把 DeepSeek Harness 的全部会话变成一间实时 3D 办公室（Three.js 自绘面板，本地插件，无外部服务）。",
   "type": "module",
   "main": "lib/index.js",
