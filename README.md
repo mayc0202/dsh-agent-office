@@ -32,7 +32,16 @@
 
 ## 安装
 
-### 方式 A：从 GitHub 安装（推荐）
+### 方式 A：从 npm 安装（推荐）
+
+包名 `dsh-agent-office` 发布后，在 DSH 插件页搜索 **dsh-agent-office**，或命令行：
+
+```bash
+DSH="/Applications/DeepSeek Harness.app/Contents/Resources/runtime/cli/bin/dsh"
+"$DSH" plugin --profile desktop add dsh-agent-office
+```
+
+### 方式 B：从 GitHub 安装
 
 DSH 侧边栏 → **插件** → 安装组合包，填：
 
@@ -50,7 +59,7 @@ DSH="/Applications/DeepSeek Harness.app/Contents/Resources/runtime/cli/bin/dsh"
 安装后在「插件」页勾选 **智能体办公室**（或把 `dsh-agent-office` 追加到
 `~/.dsh/profiles/desktop/package.json` 的 `dsh.profile.bundles`），重启 DSH 生效。
 
-### 方式 B：本地目录
+### 方式 C：本地目录
 
 ```bash
 git clone https://github.com/mayc0202/dsh-agent-office
