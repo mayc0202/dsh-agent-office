@@ -57,7 +57,7 @@ const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'hi
 renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1))
 renderer.setSize(stage.clientWidth, stage.clientHeight)
 renderer.toneMapping = THREE.ACESFilmicToneMapping
-renderer.toneMappingExposure = 1.4
+renderer.toneMappingExposure = 1.5
 renderer.outputColorSpace = THREE.SRGBColorSpace
 stage.appendChild(renderer.domElement)
 
@@ -85,14 +85,14 @@ controls.target.set(0, 2.4, 0)
 /* ------------------------------------------------------------------ *
  * 光照 / 环境
  * ------------------------------------------------------------------ */
-scene.add(new THREE.HemisphereLight(0x3a5a8c, 0x050a12, 1.15))
-const key = new THREE.DirectionalLight(0xbfd8ff, 1.7)
+scene.add(new THREE.HemisphereLight(0x4a6a9c, 0x060c16, 1.45))
+const key = new THREE.DirectionalLight(0xcfe2ff, 2.0)
 key.position.set(16, 30, 18)
 scene.add(key)
 const rim = new THREE.DirectionalLight(0x4a7cff, 0.9)
 rim.position.set(-20, 14, -18)
 scene.add(rim)
-const fill = new THREE.DirectionalLight(0x7fb2ff, 0.5)
+const fill = new THREE.DirectionalLight(0x8fbaff, 0.6)
 fill.position.set(-12, 8, 20)
 scene.add(fill)
 
@@ -149,7 +149,7 @@ const makeWindowTexture = () => {
 const cityWindowTextures = [makeWindowTexture(), makeWindowTexture(), makeWindowTexture()]
 const cityMats = [0, 1, 2].map(i => new THREE.MeshBasicMaterial({
   map: cityWindowTextures[i],
-  color: [0x7fa8c8, 0x7299bd, 0x8fb8d8][i],
+  color: [0x5f86a8, 0x567c9e, 0x6f95b5][i],
 }))
 const cityBeacons = []
 const cameraAzimuth = Math.atan2(0.95, 0.62)
@@ -160,13 +160,13 @@ const angleDiff = (a, b) => {
   return Math.abs(d)
 }
 let placed = 0
-while (placed < 44) {
-  const band = placed < 16 ? 0 : placed < 32 ? 1 : 2
-  const radius = band === 0 ? 26 + Math.random() * 12
-    : band === 1 ? 42 + Math.random() * 18 : 66 + Math.random() * 28
+while (placed < 26) {
+  const band = placed < 8 ? 0 : placed < 18 ? 1 : 2
+  const radius = band === 0 ? 34 + Math.random() * 12
+    : band === 1 ? 50 + Math.random() * 18 : 72 + Math.random() * 26
   const angle = Math.random() * Math.PI * 2
   if (band < 2 && angleDiff(angle, cameraAzimuth) < 0.55) continue
-  const height = band === 0 ? 6 + Math.random() * 12
+  const height = band === 0 ? 8 + Math.random() * 12
     : band === 1 ? 10 + Math.random() * 18 : 12 + Math.random() * 26
   const width = band === 0 ? 3.6 + Math.random() * 4
     : band === 1 ? 3.2 + Math.random() * 4.5 : 3 + Math.random() * 5.5
@@ -193,26 +193,6 @@ while (placed < 44) {
   }
   placed += 1
 }
-// 前景两侧的大楼，制造透视框景
-for (const side of [-1, 1]) {
-  const angle = cameraAzimuth + side * (0.95 + Math.random() * 0.25)
-  const radius = 28 + Math.random() * 8
-  const height = 12 + Math.random() * 14
-  const width = 4.5 + Math.random() * 2.5
-  const depth = 4 + Math.random() * 2.5
-  const building = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), cityMats[side > 0 ? 0 : 2])
-  building.position.set(Math.cos(angle) * radius, height / 2, Math.sin(angle) * radius)
-  building.rotation.y = Math.random() * Math.PI
-  city.add(building)
-  const beaconColor = side > 0 ? 0x5be7ff : 0xff5a5a
-  const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), new THREE.MeshBasicMaterial({ color: beaconColor, transparent: true, opacity: 0.9 }))
-  beacon.position.set(building.position.x, height + 0.3, building.position.z)
-  beacon.userData.baseColor = beacon.material.color.clone()
-  beacon.userData.phase = Math.random() * Math.PI * 2
-  city.add(beacon)
-  cityBeacons.push(beacon)
-}
-
 /* 星尘 *//* 星尘 *//* 星尘 *//* 星尘 */
 const dust = (() => {
   const count = 420
@@ -759,14 +739,14 @@ function buildFloor(team, index, teamAgents) {
     const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.11, 12, 10), bulbMat)
     bulb.position.set(lx, 1.98, -1.1)
     group.add(bulb)
-    const light = new THREE.PointLight(0xffd8b0, 5.5, 10, 2)
+    const light = new THREE.PointLight(0xffd8b0, 7, 10, 2)
     light.position.set(lx, 1.95, -1.1)
     group.add(light)
   }
-  const accentLight = new THREE.PointLight(teamColor, 4.2, 14, 2)
+  const accentLight = new THREE.PointLight(teamColor, 4.6, 14, 2)
   accentLight.position.set(0, 2.2, -3.2)
   group.add(accentLight)
-  const warmFill = new THREE.PointLight(0xffb27a, 2.6, 12, 2)
+  const warmFill = new THREE.PointLight(0xffb27a, 3.4, 12, 2)
   warmFill.position.set(0, 2.2, 1.5)
   group.add(warmFill)
 
@@ -1046,11 +1026,11 @@ function globalPose(floorsCount) {
   const height = Math.max(0, (floorsCount - 1) * FLOOR_GAP)
   const centerX = ((floorsCount - 1) * OFFSET_X) / 2
   const centerZ = ((floorsCount - 1) * OFFSET_Z) / 2
-  const dist = (14 + floorsCount * 2.8) * viewScale()
-  const target = new THREE.Vector3(centerX, height / 2 + 1.6, centerZ)
+  const dist = (13.5 + floorsCount * 2.5) * viewScale()
+  const target = new THREE.Vector3(centerX, height / 2 + 1.2, centerZ)
   return {
     target,
-    position: new THREE.Vector3(centerX + dist * 0.5, target.y + dist * 0.55, centerZ + dist * 0.95),
+    position: new THREE.Vector3(centerX + dist * 0.42, target.y + dist * 0.82, centerZ + dist * 0.9),
   }
 }
 
@@ -1059,7 +1039,7 @@ function focusPose(floor) {
   const target = center.clone().add(new THREE.Vector3(0, 1.2, 0))
   return {
     target,
-    position: target.clone().add(new THREE.Vector3(9.2, 7.4, 12.5).multiplyScalar(clamp(viewScale(), 0.95, 1.2))),
+    position: target.clone().add(new THREE.Vector3(7.4, 6.0, 10.2).multiplyScalar(clamp(viewScale(), 0.95, 1.2))),
   }
 }
 
