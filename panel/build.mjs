@@ -30,6 +30,7 @@ const result = await build({
   write: false,
   legalComments: 'none',
   nodePaths,
+  loader: { '.png': 'dataurl' },
   logLevel: 'info',
 })
 

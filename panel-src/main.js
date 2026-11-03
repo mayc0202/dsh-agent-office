@@ -5,6 +5,13 @@ import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js'
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js'
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
+import faceDefault from './assets/exp-default.png'
+import faceHappy from './assets/exp-happy.png'
+import faceSleepy from './assets/exp-sleepy.png'
+import faceDizzy from './assets/exp-dizzy.png'
+import faceSurprised from './assets/exp-surprised.png'
+import faceThinking from './assets/exp-thinking.png'
+import faceLoved from './assets/exp-loved.png'
 
 const API = '/night-shift/api/state'
 const FLOOR_GAP = 4.0
@@ -223,6 +230,47 @@ const radialTexture = (stops) => {
 const glowTexture = radialTexture([[0, 'rgba(255,255,255,1)'], [0.35, 'rgba(255,255,255,.42)'], [1, 'rgba(255,255,255,0)']])
 const shadowTexture = radialTexture([[0, 'rgba(0,0,0,.72)'], [0.55, 'rgba(0,0,0,.28)'], [1, 'rgba(0,0,0,0)']])
 
+/* Catora 猫猫表情（始终面向相机） */
+const FACE_SRC = {
+  default: faceDefault,
+  happy: faceHappy,
+  sleepy: faceSleepy,
+  dizzy: faceDizzy,
+  surprised: faceSurprised,
+  thinking: faceThinking,
+  loved: faceLoved,
+}
+const faceTextures = {}
+const faceLoader = new THREE.TextureLoader()
+for (const [name, src] of Object.entries(FACE_SRC)) {
+  const texture = faceLoader.load(src)
+  texture.colorSpace = THREE.SRGBColorSpace
+  faceTextures[name] = texture
+}
+const FACE_FOR_STATUS = {
+  working: 'happy',
+  need_me: 'surprised',
+  stuck: 'dizzy',
+  done: 'loved',
+  resting: 'sleepy',
+}
+const zTexture = (() => {
+  const canvas = document.createElement('canvas')
+  canvas.width = canvas.height = 128
+  const ctx = canvas.getContext('2d')
+  ctx.clearRect(0, 0, 128, 128)
+  ctx.font = '900 96px Inter, system-ui, sans-serif'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillStyle = '#d8f1ff'
+  ctx.shadowColor = 'rgba(120,200,255,.9)'
+  ctx.shadowBlur = 14
+  ctx.fillText('Z', 64, 70)
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.colorSpace = THREE.SRGBColorSpace
+  return texture
+})()
+
 const floorTexture = (() => {
   const canvas = document.createElement('canvas')
   canvas.width = canvas.height = 256
@@ -261,129 +309,67 @@ function disposeGroup(group) {
 function robotFor(agent, index = 0) {
   const group = new THREE.Group()
   const color = new THREE.Color(agent.color || '#3de1c6')
-  const status = STATUS[agent.status] ?? STATUS.resting
-  const accent = new THREE.Color(status.color)
-  const baseY = 0.62
-  const shape = agent.shape || 'cube'
-
-  const bodyMat = new THREE.MeshStandardMaterial({
-    color,
-    roughness: 0.55,
-    metalness: 0.06,
-    emissive: color,
-    emissiveIntensity: 0.14,
-  })
-  const darkMat = new THREE.MeshBasicMaterial({ color: 0x10141a })
+  const tint = color.clone().lerp(new THREE.Color(0xffffff), 0.28)
+  const accent = new THREE.Color((STATUS[agent.status] ?? STATUS.resting).color)
+  const baseY = 0.74
+  const expr = FACE_FOR_STATUS[agent.status] ?? 'default'
 
   // 接触阴影
   const shadow = new THREE.Mesh(
-    new THREE.PlaneGeometry(1.5, 1.5),
+    new THREE.PlaneGeometry(1.25, 1.25),
     new THREE.MeshBasicMaterial({ map: shadowTexture, transparent: true, opacity: 0.62, depthWrite: false }),
   )
   shadow.rotation.x = -Math.PI / 2
   shadow.position.y = 0.02
   group.add(shadow)
 
-  // 身体（按 shape 变化，参考原版的圆润小人）
-  const geos = {
-    cube: () => new RoundedBoxGeometry(0.68, 0.68, 0.68, 8, 0.26),
-    tri: () => new THREE.ConeGeometry(0.42, 0.6, 24, 1),
-    hex: () => new THREE.CylinderGeometry(0.34, 0.38, 0.6, 24),
-    ghost: () => new THREE.SphereGeometry(0.37, 32, 24),
-    star: () => new THREE.OctahedronGeometry(0.42, 3),
-    orb: () => new THREE.SphereGeometry(0.38, 32, 24),
-    pill: () => new THREE.CapsuleGeometry(0.28, 0.2, 8, 24),
-    drop: () => new THREE.SphereGeometry(0.35, 32, 24),
-    blob: () => new THREE.IcosahedronGeometry(0.41, 3),
-  }
-  const body = new THREE.Mesh((geos[shape] ?? geos.cube)(), bodyMat)
-  if (shape === 'drop') body.scale.set(1, 1.18, 1)
-  if (shape === 'ghost') body.scale.set(1, 1.04, 1)
-  body.position.y = baseY
-  group.add(body)
+  // 猫猫立绘：Sprite 永远面向相机（Grok Bot 那种平面感）
+  const faceMat = new THREE.SpriteMaterial({
+    map: faceTextures[expr],
+    color: tint,
+    transparent: true,
+    depthWrite: false,
+    toneMapped: false,
+  })
+  const face = new THREE.Sprite(faceMat)
+  face.scale.set(1.08, 1.08, 1)
+  face.position.y = baseY
+  group.add(face)
 
-  // 形状配件
-  if (shape === 'ghost') {
-    const tail = new THREE.Mesh(new THREE.ConeGeometry(0.36, 0.34, 12, 1, true), bodyMat)
-    tail.position.y = baseY - 0.44
-    tail.rotation.x = Math.PI
-    group.add(tail)
-  }
-  if (shape === 'drop') {
-    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.26, 12), bodyMat)
-    tip.position.y = baseY + 0.56
-    group.add(tip)
-  }
-  if (shape === 'star' || shape === 'orb') {
-    const halo = new THREE.Mesh(new THREE.TorusGeometry(0.44, 0.016, 8, 36), new THREE.MeshBasicMaterial({ color: accent, transparent: true, opacity: 0.5 }))
-    halo.rotation.x = Math.PI / 2
-    halo.position.y = baseY + 0.04
-    group.add(halo)
-  }
-
-  // 眼睛（白色眼白 + 深色瞳孔，参考原版表情）
-  const front = { cube: 0.32, tri: 0.14, hex: 0.3, ghost: 0.32, star: 0.24, orb: 0.33, pill: 0.22, drop: 0.3, blob: 0.32 }[shape] ?? 0.32
-  const eyeY = baseY + (shape === 'tri' ? 0.03 : 0.05)
-  const eyes = []
-  const pupils = []
-  for (const dx of [-0.11, 0.11]) {
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.09, 18, 14), new THREE.MeshBasicMaterial({ color: 0xf9fdff }))
-    eye.position.set(dx, eyeY, front)
-    eye.scale.set(1, 1.18, 0.42)
-    group.add(eye)
-    eyes.push(eye)
-    const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.044, 14, 12), new THREE.MeshBasicMaterial({ color: 0x0d1116 }))
-    pupil.position.set(dx * 0.74, eyeY - 0.006, front + 0.035)
-    pupil.scale.set(1, 1.15, 0.4)
-    group.add(pupil)
-    pupils.push(pupil)
-    const shine = new THREE.Mesh(new THREE.SphereGeometry(0.016, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffffff }))
-    shine.position.set(dx * 0.74 - 0.014, eyeY + 0.025, front + 0.05)
-    group.add(shine)
-  }
-
-  // 微笑
-  const mouth = new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.01, 6, 16, Math.PI), darkMat)
-  mouth.position.set(0, eyeY - 0.11, front + 0.02)
-  mouth.rotation.z = Math.PI
-  mouth.scale.set(1, 0.8, 1)
-  group.add(mouth)
-
-  // 天线
-  const antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.22, 6), bodyMat)
-  antenna.position.set(0.08, baseY + 0.32, 0)
-  antenna.rotation.z = -0.18
-  group.add(antenna)
-  const tip = new THREE.Mesh(new THREE.SphereGeometry(0.04, 10, 8), new THREE.MeshBasicMaterial({ color: accent }))
-  tip.position.set(0.105, baseY + 0.45, 0)
-  group.add(tip)
-
-  // 状态环
+  // 状态环 + 地面光晕
   const ring = new THREE.Mesh(
-    new THREE.RingGeometry(0.4, 0.45, 44),
+    new THREE.RingGeometry(0.42, 0.47, 44),
     new THREE.MeshBasicMaterial({ color: accent, transparent: true, opacity: 0.9, side: THREE.DoubleSide }),
   )
   ring.rotation.x = -Math.PI / 2
   ring.position.y = 0.03
   group.add(ring)
-
-  // 地面光晕
   const glow = new THREE.Sprite(new THREE.SpriteMaterial({
-    map: glowTexture,
-    color: accent,
-    transparent: true,
-    opacity: 0.3,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false,
+    map: glowTexture, color: accent, transparent: true, opacity: 0.3,
+    blending: THREE.AdditiveBlending, depthWrite: false,
   }))
   glow.scale.set(1.4, 1.4, 1)
   glow.position.y = 0.05
   group.add(glow)
 
-  // 等待确认的感叹号
+  // 睡觉 Z
+  const zzz = []
+  for (let i = 0; i < 3; i++) {
+    const z = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: zTexture, color: 0xbfe8ff, transparent: true, depthWrite: false, toneMapped: false,
+    }))
+    z.scale.setScalar(0.2)
+    z.position.set(0.3, baseY + 0.62, 0.05)
+    z.visible = false
+    group.add(z)
+    zzz.push(z)
+  }
+
+  // 等待确认感叹号
   const badgeCanvas = document.createElement('canvas')
   badgeCanvas.width = badgeCanvas.height = 128
   const bctx = badgeCanvas.getContext('2d')
+  bctx.clearRect(0, 0, 128, 128)
   bctx.fillStyle = '#ffb86b'
   bctx.beginPath(); bctx.arc(64, 64, 46, 0, Math.PI * 2); bctx.fill()
   bctx.fillStyle = '#1a1208'
@@ -394,9 +380,9 @@ function robotFor(agent, index = 0) {
   const badgeTexture = new THREE.CanvasTexture(badgeCanvas)
   badgeTexture.colorSpace = THREE.SRGBColorSpace
   const badge = new THREE.Sprite(new THREE.SpriteMaterial({ map: badgeTexture, transparent: true, depthWrite: false }))
-  badge.scale.set(0.3, 0.3, 1)
-  badge.position.y = baseY + 0.8
-  badge.visible = status === 'need_me'
+  badge.scale.set(0.24, 0.24, 1)
+  badge.position.y = baseY + 0.78
+  badge.visible = (STATUS[agent.status] ?? STATUS.resting) === 'need_me'
   group.add(badge)
 
   // 名字标签
@@ -409,22 +395,22 @@ function robotFor(agent, index = 0) {
   })
   const label = new CSS2DObject(labelDiv)
   label.center.set(0.5, 1.15)
-  label.position.set(index % 2 === 0 ? -0.1 : 0.1, baseY + 0.62 + (index % 3) * 0.08, 0)
+  label.position.set(index % 2 === 0 ? -0.08 : 0.08, baseY + 0.82 + (index % 3) * 0.06, 0)
   group.add(label)
 
   // 命中体
   const hit = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.7, 0.7, 1.5, 8),
+    new THREE.CylinderGeometry(0.62, 0.62, 1.25, 8),
     new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }),
   )
-  hit.position.y = 0.75
+  hit.position.y = 0.62
   hit.userData.agentId = agent.id
   group.add(hit)
 
   group.userData = {
     agentId: agent.id,
     index,
-    parts: { body, bodyMat, eyes, pupils, tip, ring, glow, badge, label, baseY },
+    parts: { face, faceMat, ring, glow, badge, label, zzz, baseY },
   }
   return group
 }
@@ -1308,34 +1294,43 @@ function tick() {
     if (!visible) continue
 
     const working = status === 'working'
+    const sleeping = status === 'resting'
     const phase = (id.charCodeAt(2) || 0) * 0.7
-    const bob = Math.sin(t * (working ? 2.4 : 1.2) + phase) * (working ? 0.06 : 0.03)
-    parts.body.position.y = parts.baseY + bob
-    parts.body.rotation.y = Math.sin(t * 0.9 + phase) * 0.12
-    parts.body.rotation.x = working ? Math.sin(t * 2 + phase) * 0.04 : 0
-    parts.bodyMat.emissiveIntensity = working ? 0.26 + Math.sin(t * 3.2 + phase) * 0.06
-      : status === 'stuck' ? 0.4 : status === 'need_me' ? 0.24 : 0.12
+    const bob = Math.sin(t * (working ? 2.2 : 1.1) + phase) * (working ? 0.05 : 0.025)
+    parts.face.position.y = parts.baseY + bob
+
+    // 表情只随状态切换，不做随机闪烁
+    const expr = FACE_FOR_STATUS[status] ?? 'default'
+    if (parts.faceMat.map !== faceTextures[expr]) parts.faceMat.map = faceTextures[expr]
+
+    // 呼吸/浮动
+    const breathe = sleeping ? 1 + Math.sin(t * 1.5 + phase) * 0.02 : 1 + Math.sin(t * 2.2 + phase) * 0.012
+    parts.face.scale.set(1.08 * breathe, 1.08 * breathe, 1)
 
     const statusColor = STATUS[status]?.color ?? STATUS.resting.color
     parts.ring.material.color.set(statusColor)
     parts.glow.material.color.set(statusColor)
-    parts.tip.material.color.set(statusColor)
     parts.ring.rotation.z = status === 'stuck' ? t * 2.6 : 0
     const ringPulse = working ? 1 + Math.sin(t * 3.4 + phase) * 0.08
       : status === 'need_me' ? 1 + Math.sin(t * 5 + phase) * 0.1 : 1
     parts.ring.scale.setScalar(ringPulse * (id === selectedId ? 1.24 : 1))
-    parts.glow.material.opacity = working ? 0.36 + Math.sin(t * 3.4 + phase) * 0.1
-      : status === 'need_me' ? 0.34 : status === 'stuck' ? 0.34 : 0.14
+    parts.glow.material.opacity = working ? 0.34 + Math.sin(t * 3.4 + phase) * 0.1
+      : status === 'need_me' ? 0.32 : status === 'stuck' ? 0.32 : 0.14
 
-    // 眨眼 / 休息半闭眼
-    const blinkCycle = (t + phase) % 3.6
-    const blink = status === 'resting' ? 0.32 : blinkCycle < 0.12 ? 0.12 : 1
-    parts.eyes.forEach(eye => { eye.scale.y = 1.12 * blink })
-    parts.pupils.forEach(pupil => { pupil.scale.y = 1.1 * blink })
+    // 空闲睡觉：飘 Z
+    for (let k = 0; k < 3; k++) {
+      const z = parts.zzz[k]
+      z.visible = sleeping
+      if (!sleeping) continue
+      const p = ((t * 0.42 + k * 0.34) % 1)
+      z.position.set(0.3 + p * 0.2, parts.baseY + 0.55 + p * 0.6, 0.06)
+      z.material.opacity = Math.sin(p * Math.PI) * 0.95
+      z.scale.setScalar(0.14 + p * 0.16)
+    }
 
-    // 天线/感叹号
+    // 等待确认感叹号
     parts.badge.visible = status === 'need_me'
-    if (parts.badge.visible) parts.badge.position.y = parts.baseY + 1.12 + Math.sin(t * 4 + phase) * 0.05
+    if (parts.badge.visible) parts.badge.position.y = parts.baseY + 0.95 + Math.sin(t * 4 + phase) * 0.04
 
     const labelEl = parts.label.element
     if (labelEl) labelEl.classList.toggle('on', id === selectedId)
