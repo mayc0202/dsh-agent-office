@@ -38,14 +38,12 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v))
 const stage = $('#stage')
 const labelLayer = $('#labels')
 const scene = new THREE.Scene()
-scene.background = new THREE.Color(0x0a0806)
-scene.fog = new THREE.FogExp2(0x0a0806, 0.0055)
+scene.background = new THREE.Color(0x050a14)
+scene.fog = new THREE.FogExp2(0x050a14, 0.0062)
 
-const VIEW_SIZE = 8
 const aspectOf = () => stage.clientWidth / Math.max(1, stage.clientHeight)
-const camera = new THREE.OrthographicCamera(-VIEW_SIZE * aspectOf(), VIEW_SIZE * aspectOf(), VIEW_SIZE, -VIEW_SIZE, 0.1, 400)
-camera.position.set(30, 26, 30)
-camera.zoom = 1.2
+const camera = new THREE.PerspectiveCamera(36, aspectOf(), 0.1, 400)
+camera.position.set(16, 12, 20)
 camera.updateProjectionMatrix()
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' })
@@ -58,7 +56,7 @@ stage.appendChild(renderer.domElement)
 
 const composer = new EffectComposer(renderer)
 composer.addPass(new RenderPass(scene, camera))
-const bloom = new UnrealBloomPass(new THREE.Vector2(stage.clientWidth, stage.clientHeight), 0.32, 0.7, 0.86)
+const bloom = new UnrealBloomPass(new THREE.Vector2(stage.clientWidth, stage.clientHeight), 0.55, 0.8, 0.72)
 composer.addPass(bloom)
 
 const labelRenderer = new CSS2DRenderer()
@@ -71,37 +69,35 @@ const controls = new OrbitControls(camera, renderer.domElement)
 controls.enableDamping = true
 controls.dampingFactor = 0.075
 controls.enablePan = false
-controls.enableZoom = true
-controls.zoomSpeed = 0.7
-controls.minZoom = 0.55
-controls.maxZoom = 3.4
-controls.minPolarAngle = 0.35
+controls.minDistance = 9
+controls.maxDistance = 80
+controls.minPolarAngle = 0.32
 controls.maxPolarAngle = 1.3
 controls.target.set(0, 2.4, 0)
 
 /* ------------------------------------------------------------------ *
  * 光照 / 环境
  * ------------------------------------------------------------------ */
-scene.add(new THREE.HemisphereLight(0x5c4a3e, 0x0a0806, 1.35))
-const key = new THREE.DirectionalLight(0xffe8d2, 1.95)
+scene.add(new THREE.HemisphereLight(0x3a5a8c, 0x050a12, 1.15))
+const key = new THREE.DirectionalLight(0xbfd8ff, 1.7)
 key.position.set(16, 30, 18)
 scene.add(key)
-const rim = new THREE.DirectionalLight(0xff7a45, 0.6)
+const rim = new THREE.DirectionalLight(0x4a7cff, 0.9)
 rim.position.set(-20, 14, -18)
 scene.add(rim)
-const fill = new THREE.DirectionalLight(0x88a9cc, 0.4)
+const fill = new THREE.DirectionalLight(0x7fb2ff, 0.5)
 fill.position.set(-12, 8, 20)
 scene.add(fill)
 
 const ground = new THREE.Mesh(
   new THREE.CircleGeometry(90, 72),
-  new THREE.MeshStandardMaterial({ color: 0x0d0a08, roughness: 0.9, metalness: 0.25 }),
+  new THREE.MeshStandardMaterial({ color: 0x070d18, roughness: 0.9, metalness: 0.25 }),
 )
 ground.rotation.x = -Math.PI / 2
 ground.position.y = -1.6
 scene.add(ground)
 
-const grid = new THREE.GridHelper(180, 90, 0x121c27, 0x0a1219)
+const grid = new THREE.GridHelper(180, 90, 0x0e2438, 0x081525)
 grid.position.y = -1.58
 grid.material.transparent = true
 grid.material.opacity = 0.5
@@ -109,7 +105,7 @@ scene.add(grid)
 
 const horizon = new THREE.Mesh(
   new THREE.RingGeometry(44, 45.6, 120),
-  new THREE.MeshBasicMaterial({ color: 0x173a4f, transparent: true, opacity: 0.55, side: THREE.DoubleSide }),
+  new THREE.MeshBasicMaterial({ color: 0x1f5a8a, transparent: true, opacity: 0.6, side: THREE.DoubleSide }),
 )
 horizon.rotation.x = -Math.PI / 2
 horizon.position.y = -1.55
@@ -128,8 +124,8 @@ const windowTexture = (() => {
   ctx.fillRect(0, 0, 64, 128)
   for (let y = 8; y < 124; y += 10) {
     for (let x = 6; x < 58; x += 9) {
-      if (Math.random() > 0.55) {
-        ctx.fillStyle = Math.random() > 0.3 ? 'rgba(255,190,130,.9)' : 'rgba(150,200,255,.7)'
+      if (Math.random() > 0.42) {
+        ctx.fillStyle = Math.random() > 0.35 ? 'rgba(120,190,255,.95)' : 'rgba(90,230,255,.8)'
         ctx.fillRect(x, y, 3.4, 5)
       }
     }
@@ -140,19 +136,19 @@ const windowTexture = (() => {
   return texture
 })()
 const cityMat = new THREE.MeshStandardMaterial({
-  color: 0x0a1018,
+  color: 0x060d18,
   roughness: 0.85,
   metalness: 0.15,
-  emissive: 0x0b1622,
-  emissiveIntensity: 0.35,
+  emissive: 0x0d2340,
+  emissiveIntensity: 0.9,
   emissiveMap: windowTexture,
 })
-for (let i = 0; i < 64; i++) {
+for (let i = 0; i < 96; i++) {
   const angle = Math.random() * Math.PI * 2
-  const radius = 48 + Math.random() * 64
-  const height = 4 + Math.random() * 18
-  const width = 2.4 + Math.random() * 5
-  const depth = 2.4 + Math.random() * 5
+  const radius = 22 + Math.random() * 55
+  const height = 4 + Math.random() * 24
+  const width = 2.2 + Math.random() * 5
+  const depth = 2.2 + Math.random() * 5
   const building = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), cityMat)
   building.position.set(Math.cos(angle) * radius, height / 2, Math.sin(angle) * radius)
   building.rotation.y = Math.random() * Math.PI
@@ -290,15 +286,15 @@ function robotFor(agent, index = 0) {
 
   // 身体（按 shape 变化，参考原版的圆润小人）
   const geos = {
-    cube: () => new RoundedBoxGeometry(0.62, 0.62, 0.62, 4, 0.12),
-    tri: () => new THREE.ConeGeometry(0.38, 0.7, 4, 1),
-    hex: () => new THREE.CylinderGeometry(0.3, 0.34, 0.62, 6),
-    ghost: () => new THREE.SphereGeometry(0.33, 28, 22),
-    star: () => new THREE.OctahedronGeometry(0.38),
-    orb: () => new THREE.SphereGeometry(0.34, 32, 24),
-    pill: () => new THREE.CapsuleGeometry(0.23, 0.28, 6, 20),
-    drop: () => new THREE.SphereGeometry(0.31, 24, 18),
-    blob: () => new THREE.IcosahedronGeometry(0.37, 2),
+    cube: () => new RoundedBoxGeometry(0.68, 0.68, 0.68, 8, 0.26),
+    tri: () => new THREE.ConeGeometry(0.42, 0.6, 24, 1),
+    hex: () => new THREE.CylinderGeometry(0.34, 0.38, 0.6, 24),
+    ghost: () => new THREE.SphereGeometry(0.37, 32, 24),
+    star: () => new THREE.OctahedronGeometry(0.42, 3),
+    orb: () => new THREE.SphereGeometry(0.38, 32, 24),
+    pill: () => new THREE.CapsuleGeometry(0.28, 0.2, 8, 24),
+    drop: () => new THREE.SphereGeometry(0.35, 32, 24),
+    blob: () => new THREE.IcosahedronGeometry(0.41, 3),
   }
   const body = new THREE.Mesh((geos[shape] ?? geos.cube)(), bodyMat)
   if (shape === 'drop') body.scale.set(1, 1.18, 1)
@@ -579,7 +575,7 @@ function buildFloor(team, index, teamAgents) {
   group.add(slab)
   const edges = new THREE.LineSegments(
     new THREE.EdgesGeometry(new THREE.BoxGeometry(W + 0.04, 0.46, D + 0.04)),
-    new THREE.LineBasicMaterial({ color: teamColor, transparent: true, opacity: 0.55 }),
+    new THREE.LineBasicMaterial({ color: teamColor, transparent: true, opacity: 0.85 }),
   )
   group.add(edges)
 
@@ -646,7 +642,7 @@ function buildFloor(team, index, teamAgents) {
     seam.position.set(mx, 1.57, -D / 2 + 0.25)
     group.add(seam)
   }
-  const ledBand = new THREE.Mesh(new THREE.BoxGeometry(W - 0.6, 0.035, 0.02), new THREE.MeshBasicMaterial({ color: teamColor, transparent: true, opacity: 0.55 }))
+  const ledBand = new THREE.Mesh(new THREE.BoxGeometry(W - 0.6, 0.035, 0.02), new THREE.MeshBasicMaterial({ color: teamColor, transparent: true, opacity: 0.95 }))
   ledBand.position.set(0, 2.82, -D / 2 + 0.25)
   group.add(ledBand)
   const ledBand2 = new THREE.Mesh(new THREE.BoxGeometry(W - 1.6, 0.02, 0.02), new THREE.MeshBasicMaterial({ color: teamColor, transparent: true, opacity: 0.28 }))
@@ -688,13 +684,16 @@ function buildFloor(team, index, teamAgents) {
     const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.11, 12, 10), bulbMat)
     bulb.position.set(lx, 1.98, -1.1)
     group.add(bulb)
-    const light = new THREE.PointLight(0xffe4c2, 3.6, 9.5, 2)
+    const light = new THREE.PointLight(0xffd8b0, 5.5, 10, 2)
     light.position.set(lx, 1.95, -1.1)
     group.add(light)
   }
-  const accentLight = new THREE.PointLight(teamColor, 2.8, 14, 2)
+  const accentLight = new THREE.PointLight(teamColor, 4.2, 14, 2)
   accentLight.position.set(0, 2.2, -3.2)
   group.add(accentLight)
+  const warmFill = new THREE.PointLight(0xffb27a, 2.6, 12, 2)
+  warmFill.position.set(0, 2.2, 1.5)
+  group.add(warmFill)
 
   // 大屏（会话作战面板）
   const dashCanvas = document.createElement('canvas')
@@ -799,6 +798,72 @@ function buildFloor(team, index, teamAgents) {
   }
   group.add(shelf)
 
+  // 沙发
+  const sofaMat = new THREE.MeshStandardMaterial({ color: 0x26323f, roughness: 0.9, metalness: 0.05 })
+  const sofa = new THREE.Group()
+  sofa.position.set(3.15, 0, 2.5)
+  const seat = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.34, 0.85), sofaMat)
+  seat.position.y = 0.28
+  sofa.add(seat)
+  const back = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.6, 0.18), sofaMat)
+  back.position.set(0, 0.62, -0.33)
+  sofa.add(back)
+  for (const dx of [-0.88, 0.88]) {
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.42, 0.85), sofaMat)
+    arm.position.set(dx, 0.46, 0)
+    sofa.add(arm)
+  }
+  for (const dx of [-0.45, 0.45]) {
+    const cushion = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.16, 0.66), new THREE.MeshStandardMaterial({ color: 0x3a4a5c, roughness: 0.9 }))
+    cushion.position.set(dx, 0.52, 0.04)
+    sofa.add(cushion)
+  }
+  group.add(sofa)
+
+  // 咖啡吧
+  const coffee = new THREE.Group()
+  coffee.position.set(-3.4, 0, -2.65)
+  const counter = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.9, 0.5), new THREE.MeshStandardMaterial({ color: 0x2a211a, roughness: 0.65, metalness: 0.25 }))
+  counter.position.y = 0.45
+  coffee.add(counter)
+  const machine = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.42, 0.4), new THREE.MeshStandardMaterial({ color: 0x1a222c, roughness: 0.35, metalness: 0.7 }))
+  machine.position.set(-0.35, 1.05, 0)
+  coffee.add(machine)
+  const machineLight = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.03, 0.02), new THREE.MeshBasicMaterial({ color: 0x6fe7ff }))
+  machineLight.position.set(-0.35, 1.16, 0.21)
+  coffee.add(machineLight)
+  for (let c = 0; c < 3; c++) {
+    const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.045, 0.09, 10), new THREE.MeshStandardMaterial({ color: 0xe9e2d6, roughness: 0.6 }))
+    cup.position.set(0.3 + c * 0.18, 0.95, 0.12)
+    coffee.add(cup)
+  }
+  const coffeeSignCanvas = document.createElement('canvas')
+  coffeeSignCanvas.width = 256
+  coffeeSignCanvas.height = 96
+  const cctx = coffeeSignCanvas.getContext('2d')
+  cctx.clearRect(0, 0, 256, 96)
+  cctx.font = '700 54px Inter, sans-serif'
+  cctx.textAlign = 'center'
+  cctx.textBaseline = 'middle'
+  cctx.shadowColor = 'rgba(255,120,200,.9)'
+  cctx.shadowBlur = 18
+  cctx.fillStyle = '#ffd9f0'
+  cctx.fillText('COFFEE', 128, 50)
+  const coffeeTex = new THREE.CanvasTexture(coffeeSignCanvas)
+  coffeeTex.colorSpace = THREE.SRGBColorSpace
+  const coffeeSign = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.42), new THREE.MeshBasicMaterial({ map: coffeeTex, transparent: true }))
+  coffeeSign.position.set(0, 1.65, 0.05)
+  coffee.add(coffeeSign)
+  group.add(coffee)
+
+  // 霓虹墙角灯带
+  const neonA = new THREE.Mesh(new THREE.BoxGeometry(0.05, 2.2, 0.05), new THREE.MeshBasicMaterial({ color: 0xff4fa3 }))
+  neonA.position.set(W / 2 - 0.3, 1.3, D / 2 - 0.3)
+  group.add(neonA)
+  const neonB = new THREE.Mesh(new THREE.BoxGeometry(0.05, 2.2, 0.05), new THREE.MeshBasicMaterial({ color: 0x5be7ff }))
+  neonB.position.set(-W / 2 + 0.3, 1.3, D / 2 - 0.3)
+  group.add(neonB)
+
   // 绿植
   const potMat = new THREE.MeshStandardMaterial({ color: 0x1a2129, roughness: 0.85 })
   const leafMat = new THREE.MeshStandardMaterial({ color: 0x1f6149, roughness: 0.7, emissive: 0x0a2318, emissiveIntensity: 0.5 })
@@ -893,18 +958,20 @@ function globalPose(floorsCount) {
   const height = Math.max(0, (floorsCount - 1) * FLOOR_GAP)
   const centerX = ((floorsCount - 1) * OFFSET_X) / 2
   const centerZ = ((floorsCount - 1) * OFFSET_Z) / 2
-  const zoom = clamp(1.55 - floorsCount * 0.28, 0.65, 1.7) * clamp(viewScale(), 0.92, 1.12)
+  const dist = (14 + floorsCount * 2.8) * viewScale()
+  const target = new THREE.Vector3(centerX, height / 2 + 1.6, centerZ)
   return {
-    target: new THREE.Vector3(centerX, height / 2 + 1.3, centerZ),
-    zoom,
+    target,
+    position: new THREE.Vector3(centerX + dist * 0.5, target.y + dist * 0.55, centerZ + dist * 0.95),
   }
 }
 
 function focusPose(floor) {
   const center = floor.offset.clone()
+  const target = center.clone().add(new THREE.Vector3(0, 1.2, 0))
   return {
-    target: center.clone().add(new THREE.Vector3(0, 1.2, 0)),
-    zoom: 2.15 * clamp(viewScale(), 0.95, 1.15),
+    target,
+    position: target.clone().add(new THREE.Vector3(9.2, 7.4, 12.5).multiplyScalar(clamp(viewScale(), 0.95, 1.2))),
   }
 }
 
@@ -914,17 +981,15 @@ function applyPose() {
     if (floor === undefined) return
     const pose = focusPose(floor)
     targetGoal = pose.target
-    zoomGoal = pose.zoom
-    cameraGoal = pose.target.clone().add(CAM_DIR.clone().multiplyScalar(40))
-    controls.minZoom = 1.1
-    controls.maxZoom = 3.4
+    cameraGoal = pose.position
+    controls.minDistance = 6
+    controls.maxDistance = 40
   } else {
     const pose = globalPose(floors.length)
     targetGoal = pose.target
-    zoomGoal = pose.zoom
-    cameraGoal = pose.target.clone().add(CAM_DIR.clone().multiplyScalar(40))
-    controls.minZoom = 0.55
-    controls.maxZoom = 2.6
+    cameraGoal = pose.position
+    controls.minDistance = 9
+    controls.maxDistance = 80
   }
 }
 
@@ -981,8 +1046,7 @@ function selectAgent(id, moveCamera = false) {
     const world = new THREE.Vector3()
     entry.robot.getWorldPosition(world)
     targetGoal = world.clone().add(new THREE.Vector3(0, 1.0, 0))
-    cameraGoal = targetGoal.clone().add(CAM_DIR.clone().multiplyScalar(40))
-    zoomGoal = focusFloor === null ? globalPose(floors.length).zoom * 1.18 : focusPose(floors.find(floor => floor.index === focusFloor) ?? floors[0]).zoom * 1.08
+    cameraGoal = targetGoal.clone().add(CAM_DIR.clone().multiplyScalar(13))
   }
 }
 
@@ -1132,12 +1196,9 @@ function rebuild(list) {
   $('#focusChip').hidden = true
   const pose = globalPose(teams.length)
   controls.target.copy(pose.target)
-  camera.position.copy(pose.target.clone().add(CAM_DIR.clone().multiplyScalar(40)))
-  camera.zoom = pose.zoom
-  camera.updateProjectionMatrix()
+  camera.position.copy(pose.position)
   targetGoal = null
   cameraGoal = null
-  zoomGoal = null
   controls.update()
 }
 
@@ -1288,11 +1349,7 @@ function tick() {
     controls.target.lerp(targetGoal, 0.09)
     if (controls.target.distanceTo(targetGoal) < 0.04) targetGoal = null
   }
-  if (zoomGoal !== null) {
-    camera.zoom += (zoomGoal - camera.zoom) * 0.09
-    if (Math.abs(camera.zoom - zoomGoal) < 0.002) zoomGoal = null
-    camera.updateProjectionMatrix()
-  }
+
 
   dust.rotation.y = t * 0.01
   controls.update()
@@ -1353,11 +1410,7 @@ async function poll() {
 window.addEventListener('resize', () => {
   const w = stage.clientWidth
   const h = Math.max(1, stage.clientHeight)
-  const aspect = w / h
-  camera.left = -VIEW_SIZE * aspect
-  camera.right = VIEW_SIZE * aspect
-  camera.top = VIEW_SIZE
-  camera.bottom = -VIEW_SIZE
+  camera.aspect = w / h
   camera.updateProjectionMatrix()
   renderer.setSize(w, h)
   composer.setSize(w, h)
