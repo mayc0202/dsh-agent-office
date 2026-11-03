@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { gsap } from 'gsap'
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js'
@@ -412,6 +413,8 @@ function disposeGroup(group) {
 /* ------------------------------------------------------------------ *
  * 3D 角色
  * ------------------------------------------------------------------ */
+const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
+
 function robotFor(agent, index = 0, sitY = 0) {
   const group = new THREE.Group()
   const color = new THREE.Color(agent.color || '#3de1c6')
@@ -441,6 +444,31 @@ function robotFor(agent, index = 0, sitY = 0) {
   face.scale.set(0.6, 0.6, 1)
   face.position.y = baseY
   group.add(face)
+
+  // 猫咪上下浮动的 GSAP 循环（用统一相位对象驱动，tick 里再乘幅度）
+  const motion = { bob: 0.5 }
+  if (!reduceMotion) {
+    gsap.fromTo(motion, { bob: 0 }, {
+      bob: 1,
+      duration: 1.9,
+      repeat: -1,
+      yoyo: true,
+      ease: 'sine.inOut',
+      delay: Math.random() * 1.8,
+    })
+  }
+
+  // 坐垫上的猫影（随浮动变化）
+  let seatShadow = null
+  if (sitY > 0) {
+    seatShadow = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.84, 0.58),
+      new THREE.MeshBasicMaterial({ map: shadowTexture, transparent: true, opacity: 0.46, depthWrite: false }),
+    )
+    seatShadow.rotation.x = -Math.PI / 2
+    seatShadow.position.set(0, 0.55, 0.02)
+    group.add(seatShadow)
+  }
 
   // 状态环 + 地面光晕
   const ring = new THREE.Mesh(
@@ -528,7 +556,7 @@ function robotFor(agent, index = 0, sitY = 0) {
   group.userData = {
     agentId: agent.id,
     index,
-    parts: { face, faceMat, ring, glow, badge, label, zzz, ripples, baseY },
+    parts: { face, faceMat, ring, glow, badge, label, zzz, ripples, motion, seatShadow, shadow, baseY },
   }
   return group
 }
@@ -1060,7 +1088,7 @@ function buildFloor(team, index, teamAgents) {
 
   // 彩色货架（参考原版的彩色格子）
   const shelf = new THREE.Group()
-  shelf.position.set(-W / 2 + 0.52, 0, -0.4)
+  shelf.position.set(-W / 2 + 0.26, 0, -0.4)
   shelf.rotation.y = Math.PI / 2
   const shelfMat = new THREE.MeshStandardMaterial({ color: 0x1b2430, roughness: 0.7, metalness: 0.3 })
   for (const y of [0.5, 1.15, 1.8]) {
@@ -1411,6 +1439,10 @@ function teamList(list) {
 }
 
 function rebuild(list) {
+  for (const [, entry] of agentsById) {
+    const motion = entry.robot?.userData?.parts?.motion
+    if (motion) gsap.killTweensOf(motion)
+  }
   if (tower !== null) {
     scene.remove(tower)
     disposeGroup(tower)
@@ -1552,8 +1584,14 @@ function tick() {
     const working = status === 'working'
     const sleeping = status === 'resting'
     const phase = (id.charCodeAt(2) || 0) * 0.7
-    const bob = Math.sin(t * (working ? 2.2 : 1.1) + phase) * (working ? 0.05 : 0.025)
+    const amp = working ? 0.09 : 0.055
+    const bob = reduceMotion ? 0 : (parts.motion.bob * 2 - 1) * amp
     parts.face.position.y = parts.baseY + bob
+    if (parts.seatShadow) {
+      parts.seatShadow.material.opacity = Math.max(0.08, 0.46 - bob * 2.4)
+      const sk = 1 - bob * 0.7
+      parts.seatShadow.scale.set(sk, sk, 1)
+    }
 
     // 表情只随状态切换，不做随机闪烁
     const expr = FACE_FOR_STATUS[status] ?? 'default'
