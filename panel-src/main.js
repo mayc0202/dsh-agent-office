@@ -18,7 +18,7 @@ const FLOOR_GAP = 4.0
 const W = 9
 const D = 6.5
 const OFFSET_X = 0
-const OFFSET_Z = -1.2
+const OFFSET_Z = 0
 const TEAM_COLORS = ['#ff7a45', '#7fa8ff', '#b79bff', '#3de1c6']
 const STATUS = {
   working: { label: '工作中', color: '#3de1c6' },
@@ -1415,7 +1415,12 @@ function tick() {
     if (parts.badge.visible) parts.badge.position.y = parts.baseY + 0.62 + Math.sin(t * 4 + phase) * 0.025
 
     const labelEl = parts.label.element
-    if (labelEl) labelEl.classList.toggle('on', id === selectedId)
+    if (labelEl) {
+      const topTeam = floors.length ? floors[floors.length - 1].team : null
+      // 严格对齐时下层被上层挡住，全局视角只显示顶层标签（聚焦时正常显示当前层）
+      parts.label.visible = visible && (focusFloor !== null || agent.team === topTeam)
+      labelEl.classList.toggle('on', id === selectedId)
+    }
   }
 
   // 机柜 LED 闪烁
