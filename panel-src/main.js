@@ -112,57 +112,59 @@ scene.add(grid)
 
 const horizon = new THREE.Mesh(
   new THREE.RingGeometry(44, 45.6, 120),
-  new THREE.MeshBasicMaterial({ color: 0x1f5a8a, transparent: true, opacity: 0.6, side: THREE.DoubleSide }),
+  new THREE.MeshBasicMaterial({ color: 0x1a5a44, transparent: true, opacity: 0.35, side: THREE.DoubleSide }),
 )
 horizon.rotation.x = -Math.PI / 2
 horizon.position.y = -1.55
 scene.add(horizon)
 
-/* 夜晚城市天际线 */
-const city = new THREE.Group()
-city.position.y = -1.55
-scene.add(city)
-const windowTexture = (() => {
+/* 稀疏的数字雨（Matrix 风格） */
+const GLYPHS = '0123456789ABCDEF'
+const glyphTextures = [...GLYPHS].map(ch => {
   const canvas = document.createElement('canvas')
-  canvas.width = 64
-  canvas.height = 128
+  canvas.width = canvas.height = 96
   const ctx = canvas.getContext('2d')
-  ctx.fillStyle = '#000000'
-  ctx.fillRect(0, 0, 64, 128)
-  for (let y = 8; y < 124; y += 10) {
-    for (let x = 6; x < 58; x += 9) {
-      if (Math.random() > 0.42) {
-        ctx.fillStyle = Math.random() > 0.35 ? 'rgba(120,190,255,.95)' : 'rgba(90,230,255,.8)'
-        ctx.fillRect(x, y, 3.4, 5)
-      }
-    }
-  }
+  ctx.clearRect(0, 0, 96, 96)
+  ctx.font = '700 72px ui-monospace, Menlo, monospace'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.shadowColor = 'rgba(80,255,170,.9)'
+  ctx.shadowBlur = 14
+  ctx.fillStyle = '#d8ffe9'
+  ctx.fillText(ch, 48, 52)
   const texture = new THREE.CanvasTexture(canvas)
   texture.colorSpace = THREE.SRGBColorSpace
-  texture.wrapS = texture.wrapT = THREE.RepeatWrapping
   return texture
-})()
-const cityMat = new THREE.MeshStandardMaterial({
-  color: 0x060d18,
-  roughness: 0.85,
-  metalness: 0.15,
-  emissive: 0x0d2340,
-  emissiveIntensity: 0.9,
-  emissiveMap: windowTexture,
 })
-for (let i = 0; i < 96; i++) {
+const matrixColumns = []
+for (let c = 0; c < 20; c++) {
   const angle = Math.random() * Math.PI * 2
-  const radius = 22 + Math.random() * 55
-  const height = 4 + Math.random() * 24
-  const width = 2.2 + Math.random() * 5
-  const depth = 2.2 + Math.random() * 5
-  const building = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), cityMat)
-  building.position.set(Math.cos(angle) * radius, height / 2, Math.sin(angle) * radius)
-  building.rotation.y = Math.random() * Math.PI
-  city.add(building)
+  const radius = 9 + Math.random() * 24
+  const x = Math.cos(angle) * radius
+  const z = Math.sin(angle) * radius
+  const speed = 0.7 + Math.random() * 1.5
+  const length = 3 + Math.floor(Math.random() * 4)
+  const phase = Math.random() * 24
+  const glyphs = []
+  for (let i = 0; i < length; i++) {
+    const material = new THREE.SpriteMaterial({
+      map: glyphTextures[Math.floor(Math.random() * glyphTextures.length)],
+      color: i === 0 ? 0xb8ffe0 : 0x2f9f68,
+      transparent: true,
+      opacity: Math.max(0.08, 0.6 - i * 0.09),
+      depthWrite: false,
+      toneMapped: false,
+    })
+    const sprite = new THREE.Sprite(material)
+    sprite.scale.setScalar(0.5 - i * 0.025)
+    sprite.position.set(x, 8, z)
+    scene.add(sprite)
+    glyphs.push(sprite)
+  }
+  matrixColumns.push({ x, z, speed, length, phase, glyphs })
 }
 
-/* 星尘 */
+/* 星尘 *//* 星尘 */
 const dust = (() => {
   const count = 420
   const positions = new Float32Array(count * 3)
@@ -174,10 +176,10 @@ const dust = (() => {
   const geometry = new THREE.BufferGeometry()
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
   const points = new THREE.Points(geometry, new THREE.PointsMaterial({
-    color: 0x7fa8c9,
+    color: 0x7fffd0,
     size: 0.05,
     transparent: true,
-    opacity: 0.42,
+    opacity: 0.3,
     depthWrite: false,
     blending: THREE.AdditiveBlending,
   }))
@@ -1334,6 +1336,17 @@ function tick() {
 
     const labelEl = parts.label.element
     if (labelEl) labelEl.classList.toggle('on', id === selectedId)
+  }
+
+  // 数字雨下落
+  for (const col of matrixColumns) {
+    for (let i = 0; i < col.length; i++) {
+      const glyph = col.glyphs[i]
+      const cycle = 24
+      const y = 18 - ((col.phase + t * col.speed + i * 0.95) % cycle)
+      glyph.position.set(col.x, y, col.z)
+      glyph.material.opacity = Math.max(0, (i === 0 ? 0.85 : 0.5 - i * 0.08)) * (0.55 + 0.45 * Math.sin(t * 3 + i + col.phase))
+    }
   }
 
   if (cameraGoal !== null) {
