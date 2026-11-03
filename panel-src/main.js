@@ -375,6 +375,18 @@ function robotFor(agent, index = 0, sitY = 0) {
   ring.rotation.x = -Math.PI / 2
   ring.position.y = 0.03
   group.add(ring)
+  const ripples = []
+  for (let k = 0; k < 2; k++) {
+    const ripple = new THREE.Mesh(
+      new THREE.RingGeometry(0.42, 0.5, 44),
+      new THREE.MeshBasicMaterial({ color: accent, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending }),
+    )
+    ripple.rotation.x = -Math.PI / 2
+    ripple.position.y = 0.035
+    ripple.visible = false
+    group.add(ripple)
+    ripples.push(ripple)
+  }
   const glow = new THREE.Sprite(new THREE.SpriteMaterial({
     map: glowTexture, color: accent, transparent: true, opacity: 0.3,
     blending: THREE.AdditiveBlending, depthWrite: false,
@@ -441,7 +453,7 @@ function robotFor(agent, index = 0, sitY = 0) {
   group.userData = {
     agentId: agent.id,
     index,
-    parts: { face, faceMat, ring, glow, badge, label, zzz, baseY },
+    parts: { face, faceMat, ring, glow, badge, label, zzz, ripples, baseY },
   }
   return group
 }
@@ -1445,6 +1457,15 @@ function tick() {
     const ringPulse = working ? 1 + Math.sin(t * 3.4 + phase) * 0.08
       : status === 'need_me' ? 1 + Math.sin(t * 5 + phase) * 0.1 : 1
     parts.ring.scale.setScalar(ringPulse * (id === selectedId ? 1.24 : 1))
+    for (let k = 0; k < parts.ripples.length; k++) {
+      const ripple = parts.ripples[k]
+      const selected = id === selectedId
+      ripple.visible = selected
+      if (!selected) continue
+      const p = ((t * 1.1 + k * 0.55) % 1)
+      ripple.scale.setScalar(1 + p * 2.1)
+      ripple.material.opacity = (1 - p) * 0.55
+    }
     parts.glow.material.opacity = working ? 0.34 + Math.sin(t * 3.4 + phase) * 0.1
       : status === 'need_me' ? 0.32 : status === 'stuck' ? 0.32 : 0.14
 
