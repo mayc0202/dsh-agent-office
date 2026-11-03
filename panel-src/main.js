@@ -607,6 +607,71 @@ function floorSpots(count) {
   return grid.slice(0, clamp(count, 1, grid.length)).map(([x, z]) => ({ x, z }))
 }
 
+function fmtTokens(value) {
+  const n = Number(value) || 0
+  if (n >= 1e9) return (n / 1e9).toFixed(2) + 'B'
+  if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M'
+  if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K'
+  return String(Math.round(n))
+}
+
+function drawTokenBoard(entry, week, today, share, count) {
+  const { canvas, ctx, texture } = entry
+  const w = canvas.width
+  const h = canvas.height
+  ctx.clearRect(0, 0, w, h)
+  ctx.fillStyle = 'rgba(6,12,18,.92)'
+  ctx.fillRect(0, 0, w, h)
+  ctx.strokeStyle = entry.color
+  ctx.lineWidth = 6
+  ctx.strokeRect(3, 3, w - 6, h - 6)
+  ctx.textAlign = 'left'
+  ctx.textBaseline = 'alphabetic'
+  ctx.fillStyle = 'rgba(233,240,248,.62)'
+  ctx.font = '600 32px ui-monospace, Menlo, monospace'
+  ctx.fillText('楼层 ' + String(entry.index + 1).padStart(2, '0') + ' · ' + entry.team.toUpperCase(), 40, 74)
+  ctx.fillStyle = 'rgba(233,240,248,.5)'
+  ctx.font = '500 28px ui-monospace, Menlo, monospace'
+  ctx.fillText('本周 TOKEN', 40, 146)
+  ctx.fillStyle = '#f2f7fd'
+  ctx.font = '900 142px Inter, ui-monospace, Menlo, monospace'
+  ctx.fillText(fmtTokens(week), 36, 292)
+  ctx.fillStyle = 'rgba(233,240,248,.6)'
+  ctx.font = '500 28px ui-monospace, Menlo, monospace'
+  ctx.fillText('今日 ' + fmtTokens(today) + '  ·  ' + count + ' 个会话', 40, 366)
+  const barX = 40
+  const barY = 414
+  const barW = w - 80
+  const barH = 20
+  ctx.fillStyle = 'rgba(255,255,255,.1)'
+  ctx.fillRect(barX, barY, barW, barH)
+  ctx.fillStyle = entry.color
+  ctx.fillRect(barX, barY, Math.max(6, barW * Math.min(1, Math.max(0, share))), barH)
+  ctx.fillStyle = 'rgba(233,240,248,.5)'
+  ctx.font = '500 24px ui-monospace, Menlo, monospace'
+  ctx.fillText('占本周 ' + Math.round(share * 100) + '%', barX, barY + 66)
+  texture.needsUpdate = true
+}
+
+function refreshTokenBoards(list) {
+  if (!floors.length) return
+  const stats = new Map()
+  let total = 0
+  for (const agent of list) {
+    const team = agent.team || '未分组'
+    const cur = stats.get(team) ?? { week: 0, today: 0, count: 0 }
+    cur.week += Number(agent.tokens_week) || 0
+    cur.today += Number(agent.tokens_today) || 0
+    cur.count += 1
+    stats.set(team, cur)
+    total += Number(agent.tokens_week) || 0
+  }
+  for (const entry of tokenBoards) {
+    const s = stats.get(entry.team) ?? { week: 0, today: 0, count: 0 }
+    drawTokenBoard(entry, s.week, s.today, total > 0 ? s.week / total : 0, s.count)
+  }
+}
+
 function buildFloor(team, index, teamAgents) {
   const group = new THREE.Group()
   const offset = floorOffset(index)
@@ -704,32 +769,27 @@ function buildFloor(team, index, teamAgents) {
   ledBand2.position.set(0, 0.4, -D / 2 + 0.25)
   group.add(ledBand2)
 
-  // 楼层编号牌
+  // 大屏：本工作区 TOKEN 用量
   const boardCanvas = document.createElement('canvas')
-  boardCanvas.width = 512
-  boardCanvas.height = 256
+  boardCanvas.width = 1024
+  boardCanvas.height = 512
   const bctx = boardCanvas.getContext('2d')
-  bctx.clearRect(0, 0, 512, 256)
-  bctx.fillStyle = 'rgba(61,225,198,.06)'
-  bctx.fillRect(0, 0, 512, 256)
-  bctx.font = '900 150px ui-monospace, Menlo, monospace'
-  bctx.fillStyle = 'rgba(233,238,245,.13)'
-  bctx.textAlign = 'center'
-  bctx.textBaseline = 'middle'
-  bctx.fillText(String(index + 1).padStart(2, '0'), 256, 116)
-  bctx.font = '600 26px ui-monospace, Menlo, monospace'
-  bctx.fillStyle = 'rgba(233,238,245,.46)'
-  bctx.fillText(team.toUpperCase(), 256, 212)
   const boardTexture = new THREE.CanvasTexture(boardCanvas)
   boardTexture.colorSpace = THREE.SRGBColorSpace
-  const board = new THREE.Mesh(new THREE.PlaneGeometry(2.0, 1.0), new THREE.MeshBasicMaterial({ map: boardTexture, transparent: true, depthWrite: false }))
-  board.position.set(-W * 0.26, 1.25, -D / 2 + 0.2)
+  const tokenBoard = { canvas: boardCanvas, ctx: bctx, texture: boardTexture, team, index, color: `#${teamColor.getHexString()}` }
+  drawTokenBoard(tokenBoard, 0, 0, 0, teamAgents.length)
+  tokenBoards.push(tokenBoard)
+  const board = new THREE.Mesh(
+    new THREE.PlaneGeometry(3.0, 1.5),
+    new THREE.MeshBasicMaterial({ map: boardTexture, transparent: true, depthWrite: false, toneMapped: false }),
+  )
+  board.position.set(-0.3, 1.9, -D / 2 + 0.22)
   group.add(board)
 
   // 吊灯
   const shadeMat = new THREE.MeshStandardMaterial({ color: 0x1b2532, roughness: 0.45, metalness: 0.7 })
   const bulbMat = new THREE.MeshBasicMaterial({ color: 0xfff1dc })
-  for (const lx of [-3.6, 0, 3.6]) {
+  for (const lx of [-3.5, 1.7, 3.5]) {
     const cord = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.7, 4), shadeMat)
     cord.position.set(lx, 2.4, -1.1)
     group.add(cord)
@@ -789,14 +849,14 @@ function buildFloor(team, index, teamAgents) {
   dctx.fillText('TOKENS / HOUR', 620, 470)
   const dashTexture = new THREE.CanvasTexture(dashCanvas)
   dashTexture.colorSpace = THREE.SRGBColorSpace
-  const dash = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 1.2), new THREE.MeshBasicMaterial({ map: dashTexture, toneMapped: false }))
-  dash.position.set(W * 0.14, 1.3, -D / 2 + 0.2)
+  const dash = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 0.95), new THREE.MeshBasicMaterial({ map: dashTexture, toneMapped: false }))
+  dash.position.set(W * 0.3, 1.55, -D / 2 + 0.2)
   group.add(dash)
   const dashGlow = new THREE.Mesh(
-    new THREE.PlaneGeometry(3.0, 1.6),
+    new THREE.PlaneGeometry(2.4, 1.3),
     new THREE.MeshBasicMaterial({ map: glowTexture, color: teamColor, transparent: true, opacity: 0.12, blending: THREE.AdditiveBlending, depthWrite: false }),
   )
-  dashGlow.position.set(W * 0.14, 1.3, -D / 2 + 0.18)
+  dashGlow.position.set(W * 0.3, 1.55, -D / 2 + 0.18)
   group.add(dashGlow)
 
   // 机房（玻璃房 + 机柜）
@@ -1003,6 +1063,7 @@ function buildFloor(team, index, teamAgents) {
  * ------------------------------------------------------------------ */
 let floors = []
 let agents = []
+let tokenBoards = []
 let usage = { tokens_week: 0, tokens_today: 0 }
 let selectedId = null
 let hoveredId = null
@@ -1248,6 +1309,7 @@ function rebuild(list) {
   tower = new THREE.Group()
   scene.add(tower)
   floors = []
+  tokenBoards = []
   agentsById = new Map()
   const teams = teamList(list)
   teams.forEach((team, index) => {
@@ -1495,6 +1557,7 @@ async function poll() {
       for (const floor of floors) floor.children = list.filter(agent => agent.team === floor.team).map(agent => ({ agent, robot: agentsById.get(agent.id)?.robot })).filter(item => item.robot)
       if (selectedId !== null && !agentsById.has(selectedId)) clearSelection()
     }
+    refreshTokenBoards(list)
     for (const event of data.events ?? []) lastText.set(event.bot, event.text)
     for (const agent of list) toastEvent(agent, agent.status, lastText.get(agent.id) ?? '')
     renderAll()
