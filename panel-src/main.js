@@ -231,7 +231,7 @@ const neonSign = (() => {
   ctx.shadowColor = 'rgba(255,106,61,.85)'
   ctx.shadowBlur = 36
   ctx.fillStyle = '#ffe9dd'
-  ctx.fillText('NIGHT SHIFT', 512, 78)
+  ctx.fillText('CATORA', 512, 78)
   ctx.shadowBlur = 0
   ctx.font = '500 28px ui-monospace, Menlo, monospace'
   ctx.fillStyle = 'rgba(190,170,155,.85)'
