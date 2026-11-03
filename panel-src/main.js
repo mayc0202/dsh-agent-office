@@ -378,7 +378,7 @@ function robotFor(agent, index = 0, sitY = 0) {
   const ripples = []
   for (let k = 0; k < 2; k++) {
     const ripple = new THREE.Mesh(
-      new THREE.RingGeometry(0.42, 0.5, 44),
+      new THREE.RingGeometry(0.4, 0.46, 44),
       new THREE.MeshBasicMaterial({ color: accent, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending }),
     )
     ripple.rotation.x = -Math.PI / 2
@@ -1462,9 +1462,9 @@ function tick() {
       const selected = id === selectedId
       ripple.visible = selected
       if (!selected) continue
-      const p = ((t * 1.1 + k * 0.55) % 1)
-      ripple.scale.setScalar(1 + p * 2.1)
-      ripple.material.opacity = (1 - p) * 0.55
+      const p = ((t * 0.5 + k * 0.5) % 1)
+      ripple.scale.setScalar(1 + p * 1.1)
+      ripple.material.opacity = (1 - p) * 0.3
     }
     parts.glow.material.opacity = working ? 0.34 + Math.sin(t * 3.4 + phase) * 0.1
       : status === 'need_me' ? 0.32 : status === 'stuck' ? 0.32 : 0.14
