@@ -329,12 +329,12 @@ function disposeGroup(group) {
 /* ------------------------------------------------------------------ *
  * 3D 角色
  * ------------------------------------------------------------------ */
-function robotFor(agent, index = 0) {
+function robotFor(agent, index = 0, sitY = 0) {
   const group = new THREE.Group()
   const color = new THREE.Color(agent.color || '#3de1c6')
   const tint = color.clone().lerp(new THREE.Color(0xffffff), 0.28)
   const accent = new THREE.Color((STATUS[agent.status] ?? STATUS.resting).color)
-  const baseY = 0.4
+  const baseY = 0.4 + sitY
   const expr = FACE_FOR_STATUS[agent.status] ?? 'default'
 
   // 接触阴影
@@ -538,6 +538,38 @@ function workstation(agent, spot) {
   const foot = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.025, 0.16), metalMat)
   foot.position.set(monitorX, 0.6, monitorZ - 0.02)
   group.add(foot)
+
+  // 办公椅（猫猫坐在上面；靠最前缘的工位放不下就不放）
+  const seatZ = spot.z + 1.32
+  if (seatZ + 0.35 <= D / 2) {
+    const chairX = spot.x + 0.45
+    const chairMat = new THREE.MeshStandardMaterial({ color: 0x22303e, roughness: 0.82, metalness: 0.18 })
+    const padColor = color.clone().lerp(new THREE.Color(0x1a222c), 0.55)
+    const chairSeat = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.08, 0.78), chairMat)
+    chairSeat.position.set(chairX, 0.45, seatZ)
+    group.add(chairSeat)
+    const cushion = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.06, 0.64), new THREE.MeshStandardMaterial({ color: padColor, roughness: 0.85 }))
+    cushion.position.set(chairX, 0.5, seatZ)
+    group.add(cushion)
+    const chairBack = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.52, 0.07), chairMat)
+    chairBack.position.set(chairX, 0.73, seatZ - 0.34)
+    group.add(chairBack)
+    const chairBackPad = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.38, 0.04), new THREE.MeshStandardMaterial({ color: padColor, roughness: 0.85 }))
+    chairBackPad.position.set(chairX, 0.76, seatZ - 0.3)
+    group.add(chairBackPad)
+    for (const dx of [-0.36, 0.36]) {
+      const arm = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.14, 0.7), chairMat)
+      arm.position.set(chairX + dx, 0.6, seatZ - 0.02)
+      group.add(arm)
+    }
+    for (const dx of [-0.32, 0.32]) {
+      for (const dz of [-0.3, 0.3]) {
+        const chairLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.45, 8), metalMat)
+        chairLeg.position.set(chairX + dx, 0.225, seatZ + dz)
+        group.add(chairLeg)
+      }
+    }
+  }
 
   const keyboard = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.02, 0.15), metalMat)
   keyboard.position.set(spot.x + 0.24, 0.6, spot.z + 0.82)
@@ -941,11 +973,17 @@ function buildFloor(team, index, teamAgents) {
     const ws = workstation(agent, spot)
     ws.scale.setScalar(1.15)
     group.add(ws)
-    const robot = robotFor(agent, i)
-    // 猫咪放在工位右侧，避免和桌子重叠
-    const catHalf = 0.4
-    const catX = clamp(spot.x + 1.375, -W / 2 + catHalf + 0.05, W / 2 - catHalf - 0.05)
-    robot.position.set(catX, 0.02, spot.z + 0.55)
+    // 猫咪坐在工位前的办公椅上；靠前边缘放不下时退回工位右侧
+    const chairZ = spot.z + 1.32
+    const canSit = chairZ + 0.35 <= D / 2
+    const robot = robotFor(agent, i, canSit ? 0.5 : 0)
+    if (canSit) {
+      robot.position.set(spot.x + 0.45, 0.02, chairZ + 0.04)
+    } else {
+      const catHalf = 0.4
+      const catX = clamp(spot.x + 1.375, -W / 2 + catHalf + 0.05, W / 2 - catHalf - 0.05)
+      robot.position.set(catX, 0.02, spot.z + 0.55)
+    }
     robot.userData.floorIndex = index
     group.add(robot)
     children.push({ agent, robot })
