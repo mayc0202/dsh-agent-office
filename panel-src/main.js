@@ -14,6 +14,7 @@ import faceSurprised from './assets/exp-surprised.png'
 import faceThinking from './assets/exp-thinking.png'
 import faceLoved from './assets/exp-loved.png'
 import faceSlits from './assets/exp-slits.png'
+import faceUneven from './assets/exp-uneven.png'
 
 const API = '/agent-office/api/state'
 const FLOOR_GAP = 4.0
@@ -358,6 +359,7 @@ const FACE_SRC = {
   thinking: faceThinking,
   loved: faceLoved,
   slits: faceSlits,
+  uneven: faceUneven,
 }
 const faceTextures = {}
 const faceLoader = new THREE.TextureLoader()
@@ -371,7 +373,7 @@ const GLASS_KEY = 'agent-office-ui-opacity'
 let customFaceTexture = null
 let customFaceData = ''
 const FACE_FOR_STATUS = {
-  working: 'happy',
+  working: 'uneven',
   need_me: 'surprised',
   stuck: 'dizzy',
   done: 'loved',
