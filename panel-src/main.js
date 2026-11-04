@@ -1431,7 +1431,7 @@ function renderChecks() {
   ]
   const done = checks.filter(item => item.ok).length
   $('#checkScore').textContent = `${done}/${checks.length}`
-  $('#checkBody').innerHTML = checks.map(item => `<div class="check ${item.ok ? 'ok' : ''}"><i>✓</i><span>${item.text}</span></div>`).join('')
+  $('#checkBody').innerHTML = checks.map(item => `<div class="check ${item.ok ? 'ok' : ''}"><i><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5l3 3 6-6"/></svg></i><span>${item.text}</span></div>`).join('')
 }
 
 function renderMeter() {
@@ -1454,12 +1454,19 @@ function renderFeed() {
     }).join('')
 }
 
+let cardHideTimer = null
+
 function renderCard(agent) {
   const card = $('#card')
   if (agent === null) {
-    card.classList.remove('show')
+    if (!card.classList.contains('show') || card.classList.contains('is-out')) return
+    card.classList.add('is-out')
+    clearTimeout(cardHideTimer)
+    cardHideTimer = setTimeout(() => card.classList.remove('show', 'is-out'), 160)
     return
   }
+  clearTimeout(cardHideTimer)
+  card.classList.remove('is-out')
   card.classList.add('show')
   const status = STATUS[agent.status] ?? STATUS.resting
   const floor = floors.find(item => item.team === agent.team)
