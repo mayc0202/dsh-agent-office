@@ -1454,9 +1454,7 @@ function renderCard(agent) {
   $('#cardSub').textContent = agent.schedule
   const statusEl = $('#cardStatus')
   statusEl.textContent = `● ${status.label}`
-  statusEl.style.color = status.color
-  statusEl.style.borderColor = status.color + '66'
-  statusEl.style.background = status.color + '18'
+  statusEl.dataset.status = agent.status
   $('#cardRuns').textContent = String(agent.runs_today ?? 0)
   $('#cardShare').textContent = `${Math.round(agent.usage_pct || 0)}%`
   $('#cardTokens').textContent = fmt(agent.tokens_today || 0)

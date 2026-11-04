@@ -9,6 +9,8 @@
 
 ![全局视角](screenshot.png)
 
+![白天主题](screenshot-day.png)
+
 ![单层聚焦](screenshot-focus.png)
 
 ## 特性
