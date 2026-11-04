@@ -359,6 +359,7 @@ for (const [name, src] of Object.entries(FACE_SRC)) {
   faceTextures[name] = texture
 }
 const CUSTOM_FACE_KEY = 'agent-office-custom-face'
+const GLASS_KEY = 'agent-office-ui-opacity'
 let customFaceTexture = null
 const FACE_FOR_STATUS = {
   working: 'happy',
@@ -1232,8 +1233,20 @@ function loadCustomFace() {
   })
 }
 
+function applyGlassSetting() {
+  let raw = ''
+  try { raw = localStorage.getItem(GLASS_KEY) ?? '' } catch {}
+  const value = Number.parseFloat(raw)
+  if (Number.isFinite(value)) {
+    document.documentElement.style.setProperty('--glass-alpha', String(Math.min(0.98, Math.max(0.5, value / 100))))
+  } else {
+    document.documentElement.style.removeProperty('--glass-alpha')
+  }
+}
+
 window.addEventListener('storage', event => {
   if (event.key === CUSTOM_FACE_KEY) loadCustomFace()
+  if (event.key === GLASS_KEY) applyGlassSetting()
 })
 let usage = { tokens_week: 0, tokens_today: 0 }
 let selectedId = null
@@ -1853,6 +1866,7 @@ window.__NS = {
 rebuild([])
 $('#offline').classList.add('show')
 $('#offline').textContent = '正在读取本机会话…'
+applyGlassSetting()
 loadCustomFace()
 poll()
 setInterval(poll, 2000)

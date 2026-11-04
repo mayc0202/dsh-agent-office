@@ -7,7 +7,8 @@
 <style>
   :root{
     --bg:#05070a;
-    --panel:rgba(12,15,20,.66);
+    --panel-rgb:12 15 20;
+    --panel-alpha:.66;
     --panel-2:rgba(17,21,28,.78);
     --line:rgba(255,255,255,.08);
     --line-2:rgba(255,255,255,.14);
@@ -50,7 +51,7 @@
   #labels .lbl{pointer-events:auto;cursor:pointer}
 
   /* ---------- 顶部 ---------- */
-  #top{position:absolute;left:18px;right:18px;top:16px;height:58px;display:flex;align-items:center;gap:16px;padding:0 18px;border:1px solid var(--line);border-radius:16px;background:var(--panel);backdrop-filter:blur(16px);z-index:10}
+  #top{position:absolute;left:18px;right:18px;top:16px;height:58px;display:flex;align-items:center;gap:16px;padding:0 18px;border:1px solid var(--line);border-radius:16px;background:rgb(var(--panel-rgb) / var(--glass-alpha, var(--panel-alpha)));backdrop-filter:blur(16px);z-index:10}
   .brand{display:flex;align-items:center;gap:11px;white-space:nowrap}
   .brand .mark{width:26px;height:26px;border-radius:9px;border:0;padding:0;background:conic-gradient(from 210deg,#3de1c6,#5b8cff,#a78bfa,#3de1c6);box-shadow:0 0 18px rgba(61,225,198,.35);position:relative;cursor:pointer;flex:none}
   .brand .mark{cursor:default}
@@ -60,7 +61,8 @@
   body.day .brand .mark .sun{opacity:1;transform:none}
   body.day{
     --bg:#b9cbd8;
-    --panel:rgba(248,251,252,.88);
+    --panel-rgb:248 251 252;
+    --panel-alpha:.88;
     --panel-2:rgba(255,255,255,.94);
     --line:rgba(16,40,54,.12);
     --line-2:rgba(16,40,54,.2);
@@ -122,7 +124,7 @@
   @keyframes breathe{0%,100%{opacity:.45}50%{opacity:1}}
 
   /* ---------- 面板通用 ---------- */
-  .panel{position:absolute;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);backdrop-filter:blur(16px);box-shadow:var(--shadow);z-index:9}
+  .panel{position:absolute;border:1px solid var(--line);border-radius:var(--radius);background:rgb(var(--panel-rgb) / var(--glass-alpha, var(--panel-alpha)));backdrop-filter:blur(16px);box-shadow:var(--shadow);z-index:9}
   .panel__head{display:flex;align-items:center;gap:8px;padding:14px 16px 10px;font-family:var(--mono);font-size:11px;letter-spacing:1.8px;color:var(--dim)}
   .panel__head b{margin-left:auto;color:var(--dim);font-weight:500;letter-spacing:1px}
   .panel__body{padding:0 10px 12px}
