@@ -1589,7 +1589,7 @@ function teamList(list) {
 
 
 /* ------------------------------------------------------------------ *
- * 右侧 Annex：三张固定工位 + 讲台 + 小健身房 + 备考隔间
+ * 右侧 Annex：教室布局（讲台 + 通用/备考/题库三席）
  * ------------------------------------------------------------------ */
 const ANNEX_X = 9.6
 const ANNEX_Z = 0.3
@@ -1602,6 +1602,7 @@ let mcpBeads = []
 let mcpDashes = []
 let mcpGroup = null
 let mcpSign = null
+let sciFiIcons = []
 
 function buildAnnex() {
   annex = new THREE.Group()
@@ -1646,11 +1647,12 @@ function buildAnnex() {
   box(0.06, 0.06, ANNEX_D, metal, ANNEX_W / 2 - 0.08, 2.38, 0)
   box(ANNEX_W - 1.0, 0.025, 0.02, cyan, 0, 2.31, -ANNEX_D / 2 + 0.16)
 
-  // 三张固定工位
-  function addDesk(x, z) {
+  // 教室布局：讲台在后墙，三张工位面朝讲台
+  // 1) 通用工位
+  function addDesk(x, z, matTop = wood) {
     const g = new THREE.Group()
     g.position.set(x, 0, z)
-    box(1.16, 0.055, 0.62, wood, 0, 0.72, 0, g)
+    box(1.16, 0.055, 0.62, matTop, 0, 0.72, 0, g)
     for (const [lx, lz] of [[-0.5, -0.24], [0.5, -0.24], [-0.5, 0.24], [0.5, 0.24]]) {
       box(0.055, 0.7, 0.055, dark, lx, 0.36, lz, g)
     }
@@ -1658,9 +1660,8 @@ function buildAnnex() {
     const screen = new THREE.Mesh(new THREE.PlaneGeometry(0.54, 0.3), cyan)
     screen.position.set(0, 0.95, -0.155)
     g.add(screen)
-    box(0.02, 0.06, 0.02, metal, 0, 0.73, 0.12, g)
     box(0.5, 0.055, 0.06, warm, 0, 0.76, 0.3, g)
-    // 椅子
+    // 椅子（面向讲台 -z）
     box(0.42, 0.06, 0.4, dark, 0, 0.45, 0.55, g)
     box(0.42, 0.5, 0.06, dark, 0, 0.7, 0.75, g)
     const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.42, 8), metal)
@@ -1671,13 +1672,147 @@ function buildAnnex() {
     g.add(base)
     annex.add(g)
   }
-  addDesk(-2.35, -1.55)
-  addDesk(0, -1.55)
-  addDesk(2.35, -1.55)
+  addDesk(-2.35, 0.85)
 
-  // 讲台
+  // 2) 备考隔间（产品里的学习空间）
+  const booth = new THREE.Group()
+  booth.position.set(0, 0, 0.85)
+  box(1.55, 1.78, 0.04, glass, 0, 0.9, -0.66, booth)
+  box(0.04, 1.78, 1.28, glass, -0.76, 0.9, 0, booth)
+  box(0.04, 1.78, 1.28, glass, 0.76, 0.9, 0, booth)
+  box(1.58, 0.06, 0.06, metal, 0, 1.79, -0.66, booth)
+  box(0.06, 0.06, 1.32, metal, -0.76, 1.79, 0, booth)
+  box(0.06, 0.06, 1.32, metal, 0.76, 1.79, 0, booth)
+  box(0.74, 0.055, 0.44, wood, 0, 0.7, -0.2, booth)
+  box(0.56, 0.34, 0.04, dark, 0, 0.93, -0.4, booth)
+  const boothScreen = new THREE.Mesh(new THREE.PlaneGeometry(0.48, 0.25), cyan)
+  boothScreen.position.set(0, 0.93, -0.375)
+  booth.add(boothScreen)
+  box(0.42, 0.06, 0.38, dark, 0, 0.44, 0.2, booth)
+  box(0.42, 0.5, 0.06, dark, 0, 0.69, 0.4, booth)
+  const boothLamp = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 10), warm)
+  boothLamp.position.set(0.5, 1.34, -0.32)
+  booth.add(boothLamp)
+  annex.add(booth)
+
+  // 3) 题库工位：科幻桌面 + 浮动 OCR / 数据库 / 试卷投影
+  const sci = new THREE.Group()
+  sci.position.set(2.35, 0, 0.85)
+  box(1.16, 0.07, 0.62, metal, 0, 0.72, 0, sci)
+  for (const [lx, lz] of [[-0.5, -0.24], [0.5, -0.24], [-0.5, 0.24], [0.5, 0.24]]) {
+    box(0.05, 0.7, 0.05, dark, lx, 0.36, lz, sci)
+  }
+  // 全息桌屏
+  const holoCanvas = document.createElement('canvas')
+  holoCanvas.width = 256
+  holoCanvas.height = 128
+  const hctx = holoCanvas.getContext('2d')
+  hctx.clearRect(0, 0, 256, 128)
+  hctx.strokeStyle = 'rgba(110,220,255,.7)'
+  hctx.lineWidth = 2
+  for (let x = 0; x <= 256; x += 24) {
+    hctx.beginPath(); hctx.moveTo(x, 0); hctx.lineTo(x, 128); hctx.stroke()
+  }
+  for (let y = 0; y <= 128; y += 24) {
+    hctx.beginPath(); hctx.moveTo(0, y); hctx.lineTo(256, y); hctx.stroke()
+  }
+  hctx.fillStyle = 'rgba(120,230,255,.16)'
+  hctx.fillRect(16, 22, 224, 20)
+  hctx.fillRect(16, 62, 150, 10)
+  hctx.fillRect(16, 86, 190, 10)
+  const holoTexture = new THREE.CanvasTexture(holoCanvas)
+  holoTexture.colorSpace = THREE.SRGBColorSpace
+  const holo = new THREE.Mesh(new THREE.PlaneGeometry(0.86, 0.42), new THREE.MeshBasicMaterial({ map: holoTexture, transparent: true, opacity: 0.55, depthWrite: false, toneMapped: false, side: THREE.DoubleSide }))
+  holo.position.set(0, 1.08, -0.08)
+  holo.rotation.x = -0.18
+  sci.add(holo)
+  box(0.5, 0.055, 0.06, cyan, 0, 0.76, 0.3, sci)
+  // 椅子
+  box(0.42, 0.06, 0.4, dark, 0, 0.45, 0.55, sci)
+  box(0.42, 0.5, 0.06, dark, 0, 0.7, 0.75, sci)
+  const sciStem = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.42, 8), metal)
+  sciStem.position.set(0, 0.22, 0.55)
+  sci.add(sciStem)
+  const sciBase = new THREE.Mesh(new THREE.CylinderGeometry(0.23, 0.23, 0.03, 16), dark)
+  sciBase.position.set(0, 0.02, 0.55)
+  sci.add(sciBase)
+  annex.add(sci)
+  const halo = new THREE.Mesh(
+    new THREE.RingGeometry(0.4, 0.44, 48),
+    new THREE.MeshBasicMaterial({ color: 0x6fdcff, transparent: true, opacity: 0.35, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending }),
+  )
+  halo.rotation.x = -Math.PI / 2
+  halo.position.set(2.35, 1.58, 0.98)
+  annex.add(halo)
+
+  // 浮动图标：OCR 相机 / 数据库 / 试卷（billboard，远看也清楚）
+  const iconCanvas = (draw) => {
+    const canvas = document.createElement('canvas')
+    canvas.width = canvas.height = 160
+    const ctx = canvas.getContext('2d')
+    ctx.clearRect(0, 0, 160, 160)
+    ctx.strokeStyle = '#9fe7ff'
+    ctx.fillStyle = '#9fe7ff'
+    ctx.lineWidth = 7
+    ctx.lineCap = 'round'
+    ctx.lineJoin = 'round'
+    ctx.shadowColor = 'rgba(80,200,255,.9)'
+    ctx.shadowBlur = 10
+    draw(ctx)
+    const texture = new THREE.CanvasTexture(canvas)
+    texture.colorSpace = THREE.SRGBColorSpace
+    return texture
+  }
+  const iconSprite = (texture, x, y, z, scale = 0.4) => {
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false, toneMapped: false }))
+    sprite.scale.set(scale, scale, 1)
+    sprite.position.set(2.35 + x, y, 0.85 + z)
+    annex.add(sprite)
+    sprite.userData.baseY = y
+    sprite.userData.phase = sciFiIcons.length * 0.9
+    sciFiIcons.push(sprite)
+    return sprite
+  }
+
+  const ocrTexture = iconCanvas(ctx => {
+    ctx.beginPath(); ctx.roundRect(32, 44, 78, 58, 10); ctx.stroke()
+    ctx.beginPath(); ctx.arc(73, 73, 17, 0, Math.PI * 2); ctx.stroke()
+    ctx.beginPath(); ctx.arc(73, 73, 6, 0, Math.PI * 2); ctx.fill()
+    ctx.fillRect(42, 34, 22, 10)
+    ctx.font = '700 15px ui-monospace, Menlo, monospace'
+    ctx.textAlign = 'center'
+    ctx.fillText('OCR', 80, 128)
+  })
+  const dbTexture = iconCanvas(ctx => {
+    for (let i = 0; i < 3; i++) {
+      const y = 48 + i * 24
+      ctx.beginPath(); ctx.ellipse(80, y, 28, 9, 0, 0, Math.PI * 2); ctx.stroke()
+      ctx.beginPath(); ctx.moveTo(52, y); ctx.lineTo(52, y + 22); ctx.stroke()
+      ctx.beginPath(); ctx.moveTo(108, y); ctx.lineTo(108, y + 22); ctx.stroke()
+      ctx.beginPath(); ctx.ellipse(80, y + 22, 28, 9, 0, 0, Math.PI * 2); ctx.stroke()
+    }
+    ctx.font = '700 15px ui-monospace, Menlo, monospace'
+    ctx.textAlign = 'center'
+    ctx.fillText('DB', 80, 140)
+  })
+  const paperTexture = iconCanvas(ctx => {
+    ctx.beginPath(); ctx.roundRect(46, 28, 68, 92, 5); ctx.stroke()
+    ctx.beginPath(); ctx.moveTo(98, 28); ctx.lineTo(114, 44); ctx.lineTo(98, 44); ctx.closePath(); ctx.stroke()
+    for (let i = 0; i < 5; i++) {
+      ctx.beginPath(); ctx.moveTo(60, 54 + i * 13); ctx.lineTo(100, 54 + i * 13); ctx.stroke()
+    }
+    ctx.font = '700 15px ui-monospace, Menlo, monospace'
+    ctx.textAlign = 'center'
+    ctx.fillText('EXAM', 80, 142)
+  })
+
+  iconSprite(ocrTexture, -0.5, 2.08, 0.12, 0.48)
+  iconSprite(dbTexture, 0, 2.2, 0.12, 0.48)
+  iconSprite(paperTexture, 0.5, 2.08, 0.12, 0.48)
+
+  // 讲台（教室最前面，背靠后墙，面向三张工位）
   const podium = new THREE.Group()
-  podium.position.set(0, 0, 1.55)
+  podium.position.set(0, 0, -1.95)
   box(1.35, 0.14, 0.95, dark, 0, 0.07, 0, podium)
   const lectern = box(0.7, 0.98, 0.5, wood, 0, 0.56, 0, podium)
   lectern.rotation.x = -0.04
@@ -1694,49 +1829,9 @@ function buildAnnex() {
   micHead.position.set(0.24, 1.4, 0.02)
   podium.add(micHead)
   annex.add(podium)
-
-  // 小健身房
-  const gym = new THREE.Group()
-  gym.position.set(2.45, 0, 1.5)
-  const belt = box(0.95, 0.14, 0.48, dark, 0, 0.16, 0, gym)
-  box(0.72, 0.025, 0.34, new THREE.MeshStandardMaterial({ color: 0x101820, roughness: 0.9 }), 0, 0.24, 0, gym)
-  for (const side of [-0.5, 0.5]) {
-    box(0.05, 0.62, 0.05, metal, side, 0.46, -0.17, gym)
-    box(0.05, 0.05, 0.5, metal, side, 0.76, -0.02, gym)
-  }
-  box(0.6, 0.05, 0.05, metal, 0, 0.72, -0.17, gym)
-  box(0.3, 0.2, 0.04, dark, 0, 0.83, -0.22, gym)
-  const mat = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.8), new THREE.MeshBasicMaterial({ color: 0x1c3b3d, transparent: true, opacity: 0.85 }))
-  mat.rotation.x = -Math.PI / 2
-  mat.position.set(-0.7, 0.018, 0.15)
-  gym.add(mat)
-  // 哑铃架
-  box(0.65, 0.24, 0.3, dark, -0.15, 0.12, -0.62, gym)
-  for (const [dx, w] of [[-0.2, 0.26], [0, 0.3], [0.2, 0.22]]) {
-    const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, w, 8), metal)
-    bar.rotation.z = Math.PI / 2
-    bar.position.set(-0.15 + dx, 0.3, -0.62)
-    gym.add(bar)
-  }
-  annex.add(gym)
-
-  // 备考隔间
-  const study = new THREE.Group()
-  study.position.set(-2.55, 0, 1.5)
-  box(1.55, 1.78, 0.04, glass, 0, 0.9, -0.66, study)
-  box(0.04, 1.78, 1.28, glass, -0.76, 0.9, 0, study)
-  box(0.04, 1.78, 1.28, glass, 0.76, 0.9, 0, study)
-  box(1.55, 0.06, 0.06, metal, 0, 1.79, -0.66, study)
-  box(0.06, 0.06, 1.32, metal, -0.76, 1.79, 0, study)
-  box(0.06, 0.06, 1.32, metal, 0.76, 1.79, 0, study)
-  box(0.7, 0.05, 0.42, wood, 0, 0.7, -0.28, study)
-  box(0.7, 0.58, 0.04, dark, 0, 0.95, -0.49, study)
-  box(0.4, 0.05, 0.36, dark, 0, 0.43, 0.14, study)
-  box(0.4, 0.42, 0.05, dark, 0, 0.65, 0.32, study)
-  const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 10), warm)
-  lamp.position.set(0.48, 1.35, -0.3)
-  study.add(lamp)
-  annex.add(study)
+  // 讲台后的黑板/示教板
+  box(3.3, 1.25, 0.04, dark, 0, 1.55, -2.86)
+  box(3.1, 0.03, 0.05, cyan, 0, 2.18, -2.83)
 
   // 室内灯
   const lightWarm = new THREE.PointLight(0xffd8b0, 2.6, 11, 2)
@@ -1757,9 +1852,10 @@ function buildAnnex() {
     obj.position.set(x, y, z)
     annex.add(obj)
   }
-  tag('讲台', 0, 1.8, 1.55)
-  tag('健身', 2.45, 1.95, 1.5)
-  tag('备考', -2.55, 2.0, 1.5)
+  tag('讲台', 0, 1.9, -1.95)
+  tag('通用', -2.35, 1.45, 0.85)
+  tag('备考', 0, 2.0, 0.85)
+  tag('题库', 2.35, 1.27, 0.85)
 
   // MCP 虚线 + 流光 + 暂未接通标牌
   mcpGroup = new THREE.Group()
@@ -1989,6 +2085,9 @@ function tick() {
       dash.mesh.quaternion.setFromUnitVectors(axis, tangent.normalize())
     }
     if (mcpSign) mcpSign.position.y = 4.55 + Math.sin(flow * 0.9) * 0.04
+    for (const icon of sciFiIcons) {
+      icon.position.y = icon.userData.baseY + Math.sin(flow * 2.2 + icon.userData.phase) * 0.04
+    }
   }
 
   const focusedTeam = focusFloor === null ? null : floors.find(floor => floor.index === focusFloor)?.team
