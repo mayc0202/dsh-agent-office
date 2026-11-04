@@ -361,6 +361,7 @@ for (const [name, src] of Object.entries(FACE_SRC)) {
 const CUSTOM_FACE_KEY = 'agent-office-custom-face'
 const GLASS_KEY = 'agent-office-ui-opacity'
 let customFaceTexture = null
+let customFaceData = ''
 const FACE_FOR_STATUS = {
   working: 'happy',
   need_me: 'surprised',
@@ -1216,6 +1217,10 @@ function applyCustomFaceToAll() {
     parts.faceMat.color.set(customFaceTexture ? 0xffffff : parts.tint ?? 0xffffff)
     parts.faceMat.needsUpdate = true
   }
+  if (selectedId !== null) {
+    const entry = agentsById.get(selectedId)
+    if (entry) renderCard(entry.agent)
+  }
 }
 
 function loadCustomFace() {
@@ -1223,9 +1228,11 @@ function loadCustomFace() {
   try { data = localStorage.getItem(CUSTOM_FACE_KEY) ?? '' } catch {}
   if (!data) {
     customFaceTexture = null
+    customFaceData = ''
     applyCustomFaceToAll()
     return
   }
+  customFaceData = data
   faceLoader.load(data, texture => {
     texture.colorSpace = THREE.SRGBColorSpace
     customFaceTexture = texture
@@ -1457,12 +1464,12 @@ function renderCard(agent) {
   $('#cardTeam').textContent = floor === undefined ? agent.team : `楼层 ${floor.index + 1} · ${agent.team}`
   const glyphEl = $('#cardGlyph')
   glyphEl.textContent = ''
-  glyphEl.style.backgroundImage = `url(${faceDefault})`
+  glyphEl.style.backgroundImage = `url(${customFaceData || faceDefault})`
   glyphEl.style.backgroundSize = '82% 82%'
   glyphEl.style.backgroundRepeat = 'no-repeat'
   glyphEl.style.backgroundPosition = 'center'
-  glyphEl.style.backgroundColor = `${agent.color}22`
-  glyphEl.style.border = `1px solid ${agent.color}66`
+  glyphEl.style.backgroundColor = customFaceData ? 'transparent' : `${agent.color}22`
+  glyphEl.style.border = customFaceData ? '1px solid var(--line-2)' : `1px solid ${agent.color}66`
   $('#cardName').textContent = agent.name
   $('#cardSub').textContent = agent.schedule
   const statusEl = $('#cardStatus')
