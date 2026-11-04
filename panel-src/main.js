@@ -13,6 +13,7 @@ import faceDizzy from './assets/exp-dizzy.png'
 import faceSurprised from './assets/exp-surprised.png'
 import faceThinking from './assets/exp-thinking.png'
 import faceLoved from './assets/exp-loved.png'
+import faceSlits from './assets/exp-slits.png'
 
 const API = '/agent-office/api/state'
 const FLOOR_GAP = 4.0
@@ -350,6 +351,7 @@ const FACE_SRC = {
   surprised: faceSurprised,
   thinking: faceThinking,
   loved: faceLoved,
+  slits: faceSlits,
 }
 const faceTextures = {}
 const faceLoader = new THREE.TextureLoader()
@@ -367,7 +369,7 @@ const FACE_FOR_STATUS = {
   need_me: 'surprised',
   stuck: 'dizzy',
   done: 'loved',
-  resting: 'sleepy',
+  resting: 'slits',
 }
 const zTexture = (() => {
   const canvas = document.createElement('canvas')
@@ -385,6 +387,63 @@ const zTexture = (() => {
   texture.colorSpace = THREE.SRGBColorSpace
   return texture
 })()
+
+
+const sweatTexture = (() => {
+  const canvas = document.createElement('canvas')
+  canvas.width = 64
+  canvas.height = 96
+  const ctx = canvas.getContext('2d')
+  ctx.clearRect(0, 0, 64, 96)
+  ctx.fillStyle = '#bfeaff'
+  ctx.beginPath()
+  ctx.moveTo(32, 8)
+  ctx.bezierCurveTo(46, 30, 55, 48, 55, 62)
+  ctx.bezierCurveTo(55, 79, 45, 89, 32, 89)
+  ctx.bezierCurveTo(19, 89, 9, 79, 9, 62)
+  ctx.bezierCurveTo(9, 48, 18, 30, 32, 8)
+  ctx.fill()
+  ctx.fillStyle = 'rgba(255,255,255,.85)'
+  ctx.beginPath()
+  ctx.ellipse(23, 58, 5, 9, -0.35, 0, Math.PI * 2)
+  ctx.fill()
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.colorSpace = THREE.SRGBColorSpace
+  return texture
+})()
+
+const scribbleTexture = (() => {
+  const canvas = document.createElement('canvas')
+  canvas.width = 256
+  canvas.height = 160
+  const ctx = canvas.getContext('2d')
+  ctx.clearRect(0, 0, 256, 160)
+  const strokes = [
+    [[34, 92], [64, 34], [92, 112], [124, 40], [154, 108], [186, 48], [224, 96]],
+    [[48, 54], [92, 78], [60, 126], [126, 92], [172, 124], [208, 66]],
+    [[78, 24], [104, 66], [144, 26], [168, 74], [208, 32]],
+  ]
+  ctx.lineCap = 'round'
+  ctx.lineJoin = 'round'
+  for (const pass of [{ color: 'rgba(255,255,255,.18)', width: 13 }, { color: '#0b0d10', width: 8 }]) {
+    ctx.strokeStyle = pass.color
+    ctx.lineWidth = pass.width
+    for (const points of strokes) {
+      ctx.beginPath()
+      ctx.moveTo(points[0][0], points[0][1])
+      for (let i = 1; i < points.length - 1; i += 2) {
+        const [cx, cy] = points[i]
+        const [x, y] = points[i + 1]
+        ctx.quadraticCurveTo(cx, cy, x, y)
+      }
+      ctx.stroke()
+    }
+  }
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.colorSpace = THREE.SRGBColorSpace
+  return texture
+})()
+const OVERLOAD_COLOR = new THREE.Color(0xff5a5a)
 
 const floorTexture = (() => {
   const canvas = document.createElement('canvas')
@@ -416,7 +475,7 @@ function disposeGroup(group) {
     if (object.material) {
       const materials = Array.isArray(object.material) ? object.material : [object.material]
       for (const material of materials) {
-        if (material.map && material.map !== glowTexture && material.map !== shadowTexture && material.map !== floorTexture) material.map.dispose()
+        if (material.map && material.map !== glowTexture && material.map !== shadowTexture && material.map !== floorTexture && material.map !== sweatTexture && material.map !== scribbleTexture) material.map.dispose()
         material.dispose()
       }
     }
@@ -457,6 +516,25 @@ function robotFor(agent, index = 0, sitY = 0) {
   face.scale.set(0.6, 0.6, 1)
   face.position.y = baseY
   group.add(face)
+
+  // 正常工作：大汗淋漓；长时间工作：红温 + 头顶乱线
+  const sweat = []
+  for (let i = 0; i < 4; i++) {
+    const mat = new THREE.SpriteMaterial({ map: sweatTexture, transparent: true, opacity: 0, depthWrite: false, toneMapped: false, color: 0xbfeaff })
+    const drop = new THREE.Sprite(mat)
+    drop.scale.set(0.095, 0.145, 1)
+    drop.visible = false
+    group.add(drop)
+    sweat.push({ sprite: drop, phase: i / 4, x: i % 2 === 0 ? -0.27 : 0.27, drift: i < 2 ? -0.04 : 0.04 })
+  }
+  const scribbleGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture, color: 0xff4a4a, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }))
+  scribbleGlow.scale.set(1.0, 0.62, 1)
+  scribbleGlow.position.set(0, baseY + 1.55, 0.03)
+  group.add(scribbleGlow)
+  const scribble = new THREE.Sprite(new THREE.SpriteMaterial({ map: scribbleTexture, transparent: true, opacity: 0, depthWrite: false, toneMapped: false }))
+  scribble.scale.set(0.84, 0.5, 1)
+  scribble.position.set(0, baseY + 1.55, 0.04)
+  group.add(scribble)
 
   // 猫咪上下浮动的 GSAP 循环（用统一相位对象驱动，tick 里再乘幅度）
   const motion = { bob: 0.5 }
@@ -569,7 +647,7 @@ function robotFor(agent, index = 0, sitY = 0) {
   group.userData = {
     agentId: agent.id,
     index,
-    parts: { face, faceMat, ring, glow, badge, label, zzz, ripples, motion, seatShadow, shadow, tint, baseY },
+    parts: { face, faceMat, ring, glow, badge, label, zzz, ripples, motion, seatShadow, shadow, tint, baseY, sweat, scribble, scribbleGlow },
   }
   return group
 }
@@ -1925,6 +2003,13 @@ function tick() {
     const working = status === 'working'
     const sleeping = status === 'resting'
     const phase = (id.charCodeAt(2) || 0) * 0.7
+    const nowMs = Date.now()
+    if (working) {
+      if (!entry.workingSince) entry.workingSince = nowMs
+    } else {
+      entry.workingSince = 0
+    }
+    const overloaded = working && entry.workingSince > 0 && nowMs - entry.workingSince > LOAD_WARN_MS
     const amp = working ? 0.09 : 0.055
     const bob = reduceMotion ? 0 : (parts.motion.bob * 2 - 1) * amp
     parts.face.position.y = parts.baseY + bob
@@ -1935,7 +2020,7 @@ function tick() {
     }
 
     // 表情只随状态切换；有自定义猫咪图片时优先使用
-    const expr = FACE_FOR_STATUS[status] ?? 'default'
+    const expr = overloaded ? 'dizzy' : (FACE_FOR_STATUS[status] ?? 'default')
     if (customFaceTexture) {
       if (parts.faceMat.map !== customFaceTexture) {
         parts.faceMat.map = customFaceTexture
@@ -1947,18 +2032,41 @@ function tick() {
         parts.faceMat.map = faceTextures[expr]
         parts.faceMat.needsUpdate = true
       }
-      parts.faceMat.color.copy(parts.tint)
+      parts.faceMat.color.copy(parts.tint).lerp(OVERLOAD_COLOR, overloaded ? 0.55 : 0)
+    }
+
+    // 正常工作：汗滴；长时间工作：红温乱线
+    const sweaty = working && !overloaded
+    for (const drop of parts.sweat) {
+      drop.sprite.visible = sweaty
+      if (!sweaty) continue
+      const p = (t * 0.55 + drop.phase) % 1
+      drop.sprite.position.set(drop.x + Math.sin(t * 2 + drop.phase * 8) * drop.drift, parts.baseY + 0.26 - p * 0.34, 0.12)
+      drop.sprite.material.opacity = Math.sin(p * Math.PI) * 0.92
+      drop.sprite.scale.set(0.085 + p * 0.03, 0.13 + p * 0.05, 1)
+    }
+    parts.scribble.visible = overloaded
+    parts.scribbleGlow.visible = overloaded
+    if (overloaded) {
+      const jitter = Math.sin(t * 17 + phase) * 0.012
+      parts.scribble.position.set(jitter, parts.baseY + 1.55 + Math.sin(t * 3.2 + phase) * 0.03, 0.04)
+      parts.scribble.rotation = Math.sin(t * 6 + phase) * 0.08
+      parts.scribble.material.opacity = 0.96
+      parts.scribbleGlow.position.copy(parts.scribble.position)
+      parts.scribbleGlow.position.z = 0.02
+      parts.scribbleGlow.material.opacity = 0.26 + Math.sin(t * 8 + phase) * 0.08
     }
 
     // 呼吸/浮动
     const breathe = sleeping ? 1 + Math.sin(t * 1.5 + phase) * 0.02 : 1 + Math.sin(t * 2.2 + phase) * 0.012
     parts.face.scale.set(0.6 * breathe, 0.6 * breathe, 1)
 
-    const statusColor = STATUS[status]?.color ?? STATUS.resting.color
+    const statusColor = overloaded ? '#ff5a5a' : (STATUS[status]?.color ?? STATUS.resting.color)
     parts.ring.material.color.set(statusColor)
     parts.glow.material.color.set(statusColor)
     parts.ring.rotation.z = status === 'stuck' ? t * 2.6 : 0
-    const ringPulse = working ? 1 + Math.sin(t * 3.4 + phase) * 0.08
+    const ringPulse = overloaded ? 1 + Math.sin(t * 6.5 + phase) * 0.12
+      : working ? 1 + Math.sin(t * 3.4 + phase) * 0.08
       : status === 'need_me' ? 1 + Math.sin(t * 5 + phase) * 0.1 : 1
     parts.ring.scale.setScalar(ringPulse * (id === selectedId ? 1.24 : 1))
     for (let k = 0; k < parts.ripples.length; k++) {
@@ -1970,7 +2078,8 @@ function tick() {
       ripple.scale.setScalar(1 + p * 1.1)
       ripple.material.opacity = (1 - p) * 0.3
     }
-    parts.glow.material.opacity = working ? 0.34 + Math.sin(t * 3.4 + phase) * 0.1
+    parts.glow.material.opacity = overloaded ? 0.38 + Math.sin(t * 6.5 + phase) * 0.08
+      : working ? 0.34 + Math.sin(t * 3.4 + phase) * 0.1
       : status === 'need_me' ? 0.32 : status === 'stuck' ? 0.32 : 0.14
 
     // 空闲睡觉：飘 Z
