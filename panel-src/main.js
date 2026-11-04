@@ -285,7 +285,7 @@ function applyThemeFrame() {
   for (const material of cityMats) material.color.copy(NIGHT_THEME.city).lerp(DAY_THEME.city, mix)
   const neonMaterial = neonSign?.material
   if (neonMaterial) neonMaterial.opacity = NIGHT_THEME.neon + (DAY_THEME.neon - NIGHT_THEME.neon) * mix
-  for (const item of themeLights) item.light.intensity = item.night + (item.day - item.night) * mix
+  for (const item of [...themeLights, ...annexLights]) item.light.intensity = item.night + (item.day - item.night) * mix
 }
 
 function syncThemeByClock(immediate = false) {
@@ -1278,8 +1278,8 @@ function globalPose(floorsCount) {
   const height = Math.max(0, (floorsCount - 1) * FLOOR_GAP)
   const centerX = ((floorsCount - 1) * OFFSET_X) / 2
   const centerZ = ((floorsCount - 1) * OFFSET_Z) / 2
-  const dist = (13.5 + floorsCount * 2.5) * viewScale()
-  const target = new THREE.Vector3(centerX, height / 2 + 1.2, centerZ)
+  const dist = (19 + floorsCount * 3) * viewScale()
+  const target = new THREE.Vector3(centerX + 3.6, height / 2 + 1.0, centerZ + 0.8)
   return {
     target,
     position: new THREE.Vector3(centerX + dist * 0.42, target.y + dist * 0.82, centerZ + dist * 0.9),
@@ -1322,6 +1322,8 @@ function setFloorFocus(index) {
     for (const child of floor.children) child.robot.userData.parts.label.visible = visible
   }
   neonSign.visible = !focused
+  if (annex) annex.visible = !focused
+  if (mcpGroup) mcpGroup.visible = !focused
   const chip = $('#focusChip')
   if (focused) {
     const floor = floors.find(item => item.index === index)
@@ -1500,6 +1502,255 @@ function teamList(list) {
   return teams.slice(0, 4)
 }
 
+
+/* ------------------------------------------------------------------ *
+ * 右侧 Annex：三张固定工位 + 讲台 + 小健身房 + 备考隔间
+ * ------------------------------------------------------------------ */
+const ANNEX_X = 9.6
+const ANNEX_Z = 0.3
+const ANNEX_W = 7.2
+const ANNEX_D = 6.0
+let annex = null
+let annexLights = []
+let mcpCurve = null
+let mcpBeads = []
+let mcpDashes = []
+let mcpGroup = null
+let mcpSign = null
+
+function buildAnnex() {
+  annex = new THREE.Group()
+  annex.position.set(ANNEX_X, 0, ANNEX_Z)
+  annex.scale.setScalar(0.84)
+  scene.add(annex)
+
+  const wood = new THREE.MeshStandardMaterial({ color: 0x2a2119, roughness: 0.72, metalness: 0.2 })
+  const dark = new THREE.MeshStandardMaterial({ color: 0x17212b, roughness: 0.5, metalness: 0.5 })
+  const metal = new THREE.MeshStandardMaterial({ color: 0x334654, roughness: 0.35, metalness: 0.75 })
+  const glass = new THREE.MeshStandardMaterial({ color: 0x8fc8ff, transparent: true, opacity: 0.06, roughness: 0.08, metalness: 0.1, depthWrite: false, side: THREE.DoubleSide })
+  const cyan = new THREE.MeshBasicMaterial({ color: 0x7fd7ff, toneMapped: false })
+  const warm = new THREE.MeshBasicMaterial({ color: 0xffcf9a, toneMapped: false })
+  const box = (w, h, d, mat, x, y, z, parent = annex) => {
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat)
+    mesh.position.set(x, y, z)
+    parent.add(mesh)
+    return mesh
+  }
+
+  // 地板 / 边线
+  box(ANNEX_W, 0.3, ANNEX_D, wood, 0, -0.15, 0)
+  const top = new THREE.Mesh(new THREE.PlaneGeometry(ANNEX_W - 0.18, ANNEX_D - 0.18), new THREE.MeshStandardMaterial({ map: floorTexture, roughness: 0.8, metalness: 0.25 }))
+  top.rotation.x = -Math.PI / 2
+  top.position.y = 0.012
+  annex.add(top)
+  const edge = new THREE.LineSegments(
+    new THREE.EdgesGeometry(new THREE.BoxGeometry(ANNEX_W + 0.04, 0.34, ANNEX_D + 0.04)),
+    new THREE.LineBasicMaterial({ color: 0x8fd4ff, transparent: true, opacity: 0.75 }),
+  )
+  annex.add(edge)
+
+  // 玻璃外墙（正面留空）
+  box(ANNEX_W, 2.35, 0.05, glass, 0, 1.18, -ANNEX_D / 2 + 0.08)
+  box(0.05, 2.35, ANNEX_D, glass, -ANNEX_W / 2 + 0.08, 1.18, 0)
+  box(0.05, 2.35, ANNEX_D, glass, ANNEX_W / 2 - 0.08, 1.18, 0)
+  for (const [x, z] of [[-ANNEX_W / 2 + 0.08, -ANNEX_D / 2 + 0.08], [ANNEX_W / 2 - 0.08, -ANNEX_D / 2 + 0.08], [-ANNEX_W / 2 + 0.08, ANNEX_D / 2 - 0.08], [ANNEX_W / 2 - 0.08, ANNEX_D / 2 - 0.08]]) {
+    box(0.09, 2.45, 0.09, dark, x, 1.22, z)
+  }
+  box(ANNEX_W, 0.06, 0.06, metal, 0, 2.38, -ANNEX_D / 2 + 0.08)
+  box(0.06, 0.06, ANNEX_D, metal, -ANNEX_W / 2 + 0.08, 2.38, 0)
+  box(0.06, 0.06, ANNEX_D, metal, ANNEX_W / 2 - 0.08, 2.38, 0)
+  box(ANNEX_W - 1.0, 0.025, 0.02, cyan, 0, 2.31, -ANNEX_D / 2 + 0.16)
+
+  // 三张固定工位
+  function addDesk(x, z) {
+    const g = new THREE.Group()
+    g.position.set(x, 0, z)
+    box(1.16, 0.055, 0.62, wood, 0, 0.72, 0, g)
+    for (const [lx, lz] of [[-0.5, -0.24], [0.5, -0.24], [-0.5, 0.24], [0.5, 0.24]]) {
+      box(0.055, 0.7, 0.055, dark, lx, 0.36, lz, g)
+    }
+    box(0.62, 0.4, 0.045, dark, 0, 0.95, -0.18, g)
+    const screen = new THREE.Mesh(new THREE.PlaneGeometry(0.54, 0.3), cyan)
+    screen.position.set(0, 0.95, -0.155)
+    g.add(screen)
+    box(0.02, 0.06, 0.02, metal, 0, 0.73, 0.12, g)
+    box(0.5, 0.055, 0.06, warm, 0, 0.76, 0.3, g)
+    // 椅子
+    box(0.42, 0.06, 0.4, dark, 0, 0.45, 0.55, g)
+    box(0.42, 0.5, 0.06, dark, 0, 0.7, 0.75, g)
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.42, 8), metal)
+    stem.position.set(0, 0.22, 0.55)
+    g.add(stem)
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.23, 0.23, 0.03, 16), dark)
+    base.position.set(0, 0.02, 0.55)
+    g.add(base)
+    annex.add(g)
+  }
+  addDesk(-2.35, -1.55)
+  addDesk(0, -1.55)
+  addDesk(2.35, -1.55)
+
+  // 讲台
+  const podium = new THREE.Group()
+  podium.position.set(0, 0, 1.55)
+  box(1.35, 0.14, 0.95, dark, 0, 0.07, 0, podium)
+  const lectern = box(0.7, 0.98, 0.5, wood, 0, 0.56, 0, podium)
+  lectern.rotation.x = -0.04
+  const topPlate = box(0.86, 0.06, 0.58, metal, 0, 1.08, 0, podium)
+  topPlate.rotation.x = -0.16
+  const panel = new THREE.Mesh(new THREE.PlaneGeometry(0.46, 0.26), cyan)
+  panel.position.set(0, 0.64, 0.256)
+  podium.add(panel)
+  const mic = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.36, 6), metal)
+  mic.position.set(0.2, 1.22, 0.02)
+  mic.rotation.z = -0.22
+  podium.add(mic)
+  const micHead = new THREE.Mesh(new THREE.SphereGeometry(0.04, 10, 10), cyan)
+  micHead.position.set(0.24, 1.4, 0.02)
+  podium.add(micHead)
+  annex.add(podium)
+
+  // 小健身房
+  const gym = new THREE.Group()
+  gym.position.set(2.45, 0, 1.5)
+  const belt = box(0.95, 0.14, 0.48, dark, 0, 0.16, 0, gym)
+  box(0.72, 0.025, 0.34, new THREE.MeshStandardMaterial({ color: 0x101820, roughness: 0.9 }), 0, 0.24, 0, gym)
+  for (const side of [-0.5, 0.5]) {
+    box(0.05, 0.62, 0.05, metal, side, 0.46, -0.17, gym)
+    box(0.05, 0.05, 0.5, metal, side, 0.76, -0.02, gym)
+  }
+  box(0.6, 0.05, 0.05, metal, 0, 0.72, -0.17, gym)
+  box(0.3, 0.2, 0.04, dark, 0, 0.83, -0.22, gym)
+  const mat = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.8), new THREE.MeshBasicMaterial({ color: 0x1c3b3d, transparent: true, opacity: 0.85 }))
+  mat.rotation.x = -Math.PI / 2
+  mat.position.set(-0.7, 0.018, 0.15)
+  gym.add(mat)
+  // 哑铃架
+  box(0.65, 0.24, 0.3, dark, -0.15, 0.12, -0.62, gym)
+  for (const [dx, w] of [[-0.2, 0.26], [0, 0.3], [0.2, 0.22]]) {
+    const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, w, 8), metal)
+    bar.rotation.z = Math.PI / 2
+    bar.position.set(-0.15 + dx, 0.3, -0.62)
+    gym.add(bar)
+  }
+  annex.add(gym)
+
+  // 备考隔间
+  const study = new THREE.Group()
+  study.position.set(-2.55, 0, 1.5)
+  box(1.55, 1.78, 0.04, glass, 0, 0.9, -0.66, study)
+  box(0.04, 1.78, 1.28, glass, -0.76, 0.9, 0, study)
+  box(0.04, 1.78, 1.28, glass, 0.76, 0.9, 0, study)
+  box(1.55, 0.06, 0.06, metal, 0, 1.79, -0.66, study)
+  box(0.06, 0.06, 1.32, metal, -0.76, 1.79, 0, study)
+  box(0.06, 0.06, 1.32, metal, 0.76, 1.79, 0, study)
+  box(0.7, 0.05, 0.42, wood, 0, 0.7, -0.28, study)
+  box(0.7, 0.58, 0.04, dark, 0, 0.95, -0.49, study)
+  box(0.4, 0.05, 0.36, dark, 0, 0.43, 0.14, study)
+  box(0.4, 0.42, 0.05, dark, 0, 0.65, 0.32, study)
+  const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 10), warm)
+  lamp.position.set(0.48, 1.35, -0.3)
+  study.add(lamp)
+  annex.add(study)
+
+  // 室内灯
+  const lightWarm = new THREE.PointLight(0xffd8b0, 2.6, 11, 2)
+  lightWarm.position.set(0, 2.15, 0.4)
+  annex.add(lightWarm)
+  annexLights.push({ light: lightWarm, night: 2.6, day: 1.1 })
+  const lightCool = new THREE.PointLight(0x8fc8ff, 1.8, 10, 2)
+  lightCool.position.set(0, 2.3, -1.8)
+  annex.add(lightCool)
+  annexLights.push({ light: lightCool, night: 1.8, day: 0.8 })
+
+  // 区域标签
+  const tag = (text, x, y, z) => {
+    const el = document.createElement('div')
+    el.className = 'officeTag'
+    el.textContent = text
+    const obj = new CSS2DObject(el)
+    obj.position.set(x, y, z)
+    annex.add(obj)
+  }
+  tag('讲台', 0, 1.8, 1.55)
+  tag('健身', 2.45, 1.95, 1.5)
+  tag('备考', -2.55, 2.0, 1.5)
+
+  // MCP 虚线 + 流光 + 暂未接通标牌
+  mcpGroup = new THREE.Group()
+  scene.add(mcpGroup)
+  mcpCurve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(4.55, 2.55, 0.35),
+    new THREE.Vector3(5.15, 3.35, 0.55),
+    new THREE.Vector3(5.8, 3.05, 0.8),
+    new THREE.Vector3(6.58, 2.3, 1.14),
+  ])
+  const pts = mcpCurve.getPoints(90)
+  const cableGeo = new THREE.BufferGeometry().setFromPoints(pts)
+  const cable = new THREE.Line(cableGeo, new THREE.LineDashedMaterial({
+    color: 0x2f7fff, dashSize: 0.2, gapSize: 0.16, transparent: true, opacity: 0.9,
+  }))
+  cable.computeLineDistances()
+  mcpGroup.add(cable)
+
+  // 沿曲线流动的短划，形成可见的“流光”
+  const dashGeo = new THREE.BoxGeometry(0.18, 0.05, 0.05)
+  const dashMat = new THREE.MeshBasicMaterial({ color: 0x2f7fff, transparent: true, opacity: 0.95, depthWrite: false, toneMapped: false })
+  for (let i = 0; i < 8; i++) {
+    const dash = new THREE.Mesh(dashGeo, dashMat)
+    mcpGroup.add(dash)
+    mcpDashes.push({ mesh: dash, phase: i / 8 })
+  }
+
+  const beadGeo = new THREE.SphereGeometry(0.042, 8, 8)
+  const beadMat = new THREE.MeshBasicMaterial({ color: 0x66b8ff, transparent: true, opacity: 0.95, depthWrite: false, toneMapped: false })
+  for (let i = 0; i < 9; i++) {
+    const bead = new THREE.Mesh(beadGeo, beadMat)
+    mcpGroup.add(bead)
+    mcpBeads.push({ mesh: bead, phase: i / 9 })
+  }
+
+  const signCanvas = document.createElement('canvas')
+  signCanvas.width = 512
+  signCanvas.height = 160
+  const sctx = signCanvas.getContext('2d')
+  sctx.clearRect(0, 0, 512, 160)
+  sctx.fillStyle = 'rgba(5,16,28,.88)'
+  sctx.beginPath()
+  sctx.roundRect(6, 6, 500, 148, 24)
+  sctx.fill()
+  sctx.strokeStyle = 'rgba(84,168,255,.55)'
+  sctx.lineWidth = 2
+  sctx.stroke()
+  sctx.strokeStyle = '#54a8ff'
+  sctx.lineWidth = 13
+  sctx.lineCap = 'round'
+  const drawX = (cx, cy, size) => {
+    sctx.beginPath(); sctx.moveTo(cx - size, cy - size); sctx.lineTo(cx + size, cy + size); sctx.stroke()
+    sctx.beginPath(); sctx.moveTo(cx + size, cy - size); sctx.lineTo(cx - size, cy + size); sctx.stroke()
+  }
+  drawX(58, 70, 19)
+  drawX(454, 70, 19)
+  sctx.fillStyle = '#d8efff'
+  sctx.textAlign = 'center'
+  sctx.font = '700 58px ui-monospace, Menlo, monospace'
+  sctx.fillText('MCP', 256, 89)
+  sctx.fillStyle = 'rgba(120,190,255,.82)'
+  sctx.font = '500 22px ui-monospace, Menlo, monospace'
+  sctx.fillText('暂未接通', 256, 128)
+  const signTex = new THREE.CanvasTexture(signCanvas)
+  signTex.colorSpace = THREE.SRGBColorSpace
+  mcpSign = new THREE.Sprite(new THREE.SpriteMaterial({ map: signTex, transparent: true, depthWrite: false, toneMapped: false }))
+  mcpSign.position.set(5.6, 4.55, 1.18)
+  mcpSign.scale.set(3.35, 1.05, 1)
+  mcpGroup.add(mcpSign)
+
+  const signGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture, color: 0x3f9dff, transparent: true, opacity: 0.24, blending: THREE.AdditiveBlending, depthWrite: false }))
+  signGlow.position.copy(mcpSign.position)
+  signGlow.scale.set(4.4, 1.8, 1)
+  mcpGroup.add(signGlow)
+}
+
 function rebuild(list) {
   for (const [, entry] of agentsById) {
     const motion = entry.robot?.userData?.parts?.motion
@@ -1528,6 +1779,8 @@ function rebuild(list) {
   neonSign.position.set((teams.length - 1) * OFFSET_X * 0.5, height + 5.2, (teams.length - 1) * OFFSET_Z * 0.5)
   selectedId = null
   focusFloor = null
+  if (annex) annex.visible = true
+  if (mcpGroup) mcpGroup.visible = true
   $('#focusChip').hidden = true
   const pose = globalPose(teams.length)
   controls.target.copy(pose.target)
@@ -1633,6 +1886,25 @@ function tick() {
   const t = clock.getElapsedTime()
   requestAnimationFrame(tick)
   applyThemeFrame()
+  if (mcpCurve && mcpBeads.length > 0) {
+    const flow = clock.getElapsedTime()
+    for (const bead of mcpBeads) {
+      const p = mcpCurve.getPointAt((flow * 0.11 + bead.phase) % 1)
+      bead.mesh.position.copy(p)
+      bead.mesh.scale.setScalar(0.75 + 0.35 * Math.sin(flow * 5 + bead.phase * 18))
+    }
+    const axis = new THREE.Vector3(1, 0, 0)
+    const point = new THREE.Vector3()
+    const tangent = new THREE.Vector3()
+    for (const dash of mcpDashes) {
+      const t = (flow * 0.075 + dash.phase) % 1
+      mcpCurve.getPointAt(t, point)
+      mcpCurve.getTangentAt(t, tangent)
+      dash.mesh.position.copy(point)
+      dash.mesh.quaternion.setFromUnitVectors(axis, tangent.normalize())
+    }
+    if (mcpSign) mcpSign.position.y = 4.55 + Math.sin(flow * 0.9) * 0.04
+  }
 
   const focusedTeam = focusFloor === null ? null : floors.find(floor => floor.index === focusFloor)?.team
   for (const [id, entry] of agentsById) {
@@ -1873,6 +2145,7 @@ window.__NS = {
 rebuild([])
 $('#offline').classList.add('show')
 $('#offline').textContent = '正在读取本机会话…'
+buildAnnex()
 applyGlassSetting()
 loadCustomFace()
 poll()
