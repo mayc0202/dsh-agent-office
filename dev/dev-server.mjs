@@ -5,7 +5,7 @@
  */
 import { createServer } from 'node:http'
 import { readFileSync } from 'node:fs'
-import { createNightShiftStore, fetchDeepSeekBalance } from '../lib/state.js'
+import { createNightShiftStore, fetchDeepSeekBalance, fetchWeather } from '../lib/state.js'
 
 const port = Number(process.env.PORT ?? 8899)
 const store = createNightShiftStore({})
@@ -26,6 +26,21 @@ const server = createServer(async (req, res) => {
   if (path === '/agent-office/api/balance') {
     try {
       const payload = await fetchDeepSeekBalance({})
+      res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' })
+      res.end(JSON.stringify(payload))
+    } catch (error) {
+      res.writeHead(500, { 'content-type': 'application/json; charset=utf-8' })
+      res.end(JSON.stringify({ ok: false, error: String(error) }))
+    }
+    return
+  }
+  if (path === '/agent-office/api/weather') {
+    try {
+      const url = new URL(req.url ?? '/', 'http://dev.local')
+      const payload = await fetchWeather({
+        lat: url.searchParams.get('lat'),
+        lon: url.searchParams.get('lon'),
+      })
       res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' })
       res.end(JSON.stringify(payload))
     } catch (error) {

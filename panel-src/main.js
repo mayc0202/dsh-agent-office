@@ -287,6 +287,12 @@ function applyThemeFrame() {
   const neonMaterial = neonSign?.material
   if (neonMaterial) neonMaterial.opacity = NIGHT_THEME.neon + (DAY_THEME.neon - NIGHT_THEME.neon) * mix
   for (const item of [...themeLights, ...annexLights]) item.light.intensity = item.night + (item.day - item.night) * mix
+  const weatherDim = weatherMode === 'storm' ? 0.86 : weatherMode === 'rain' || weatherMode === 'snow' ? 0.92 : weatherMode === 'cloudy' ? 0.95 : weatherMode === 'wind' ? 0.98 : 1
+  hemi.intensity *= weatherDim
+  key.intensity *= weatherDim
+  rim.intensity *= weatherDim
+  fill.intensity *= weatherDim
+  scene.fog.density = 0.0085 * (weatherMode === 'rain' || weatherMode === 'snow' || weatherMode === 'storm' ? 1.06 : 1)
 }
 
 function syncThemeByClock(immediate = false) {
@@ -306,17 +312,17 @@ const neonSign = (() => {
   canvas.height = 192
   const ctx = canvas.getContext('2d')
   ctx.clearRect(0, 0, canvas.width, canvas.height)
-  ctx.font = '900 88px Inter, "PingFang SC", system-ui, sans-serif'
+  ctx.font = '900 72px Inter, "PingFang SC", system-ui, sans-serif'
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  ctx.shadowColor = 'rgba(255,106,61,.85)'
-  ctx.shadowBlur = 36
-  ctx.fillStyle = '#ffe9dd'
-  ctx.fillText('CATORA', 512, 78)
+  ctx.shadowColor = 'rgba(77,107,254,.95)'
+  ctx.shadowBlur = 40
+  ctx.fillStyle = '#eaf1ff'
+  ctx.fillText('DEEPSEEK HARNESS', 512, 74)
   ctx.shadowBlur = 0
-  ctx.font = '500 28px ui-monospace, Menlo, monospace'
-  ctx.fillStyle = 'rgba(190,170,155,.85)'
-  ctx.fillText('DEEPSEEK HARNESS — LIVE SESSION OFFICE', 512, 150)
+  ctx.font = '500 26px ui-monospace, Menlo, monospace'
+  ctx.fillStyle = 'rgba(160,190,255,.9)'
+  ctx.fillText('LIVE SESSION OFFICE', 512, 146)
   const texture = new THREE.CanvasTexture(canvas)
   texture.colorSpace = THREE.SRGBColorSpace
   const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false }))
@@ -445,6 +451,39 @@ const scribbleTexture = (() => {
 })()
 const OVERLOAD_COLOR = new THREE.Color(0xff5a5a)
 
+const keyboardTexture = (() => {
+  const canvas = document.createElement('canvas')
+  canvas.width = 256
+  canvas.height = 96
+  const ctx = canvas.getContext('2d')
+  ctx.fillStyle = '#0a1017'
+  ctx.fillRect(0, 0, 256, 96)
+  const cols = 14
+  const rows = 4
+  const keyW = 14
+  const keyH = 14
+  const gap = 2
+  const startX = (256 - (cols * (keyW + gap) - gap)) / 2
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const x = startX + c * (keyW + gap)
+      const y = 10 + r * (keyH + gap)
+      ctx.fillStyle = (r === 2 && c > 4 && c < 9) ? '#24445a' : '#1c2a36'
+      ctx.beginPath(); ctx.roundRect(x, y, keyW, keyH, 2); ctx.fill()
+      ctx.fillStyle = 'rgba(150,220,255,.22)'
+      ctx.fillRect(x + 2, y + 2, keyW - 4, 2)
+    }
+  }
+  // spacebar + underglow
+  ctx.fillStyle = '#1c2a36'
+  ctx.beginPath(); ctx.roundRect(62, 74, 132, 13, 3); ctx.fill()
+  ctx.fillStyle = 'rgba(80,220,255,.55)'
+  ctx.fillRect(4, 91, 248, 2)
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.colorSpace = THREE.SRGBColorSpace
+  return texture
+})()
+
 const floorTexture = (() => {
   const canvas = document.createElement('canvas')
   canvas.width = canvas.height = 256
@@ -464,6 +503,197 @@ const floorTexture = (() => {
   return texture
 })()
 
+/* ------------------------------------------------------------------ *
+ * 天气：云层 / 雨 / 雪 / 风
+ * ------------------------------------------------------------------ */
+const weatherGroup = new THREE.Group()
+scene.add(weatherGroup)
+const weatherCloudTexture = (() => {
+  const canvas = document.createElement('canvas')
+  canvas.width = 512
+  canvas.height = 192
+  const ctx = canvas.getContext('2d')
+  ctx.clearRect(0, 0, 512, 192)
+  for (const [x, y, rx, ry, alpha] of [[120, 108, 160, 26, .16], [260, 84, 210, 22, .14], [400, 112, 170, 20, .13], [190, 132, 130, 14, .11], [340, 64, 120, 16, .1]]) {
+    const grad = ctx.createRadialGradient(x, y, 0, x, y, rx)
+    grad.addColorStop(0, `rgba(230,242,250,${alpha})`)
+    grad.addColorStop(.5, `rgba(196,214,228,${alpha * .55})`)
+    grad.addColorStop(1, 'rgba(170,195,214,0)')
+    ctx.fillStyle = grad
+    ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); ctx.fill()
+  }
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.colorSpace = THREE.SRGBColorSpace
+  return texture
+})()
+const weatherClouds = []
+for (let i = 0; i < 7; i++) {
+  const material = new THREE.SpriteMaterial({ map: weatherCloudTexture, color: 0x8d9dab, transparent: true, opacity: 0, depthWrite: false, toneMapped: false })
+  const cloud = new THREE.Sprite(material)
+  cloud.scale.set(17 + (i % 3) * 3, 2.8 + (i % 2) * .8, 1)
+  cloud.position.set(-16 + (i * 5.1) % 32, 6.2 + (i % 4) * .9, 4 + (i * 3.1) % 13)
+  cloud.userData = { baseX: cloud.position.x, baseY: cloud.position.y, baseZ: cloud.position.z, phase: i * 0.9 }
+  weatherGroup.add(cloud)
+  weatherClouds.push(cloud)
+}
+
+const WEATHER_COUNT = 560
+const weatherPositions = new Float32Array(WEATHER_COUNT * 3)
+const weatherGeometry = new THREE.BufferGeometry()
+weatherGeometry.setAttribute('position', new THREE.BufferAttribute(weatherPositions, 3))
+const weatherPointTexture = (() => {
+  const canvas = document.createElement('canvas')
+  canvas.width = canvas.height = 64
+  const ctx = canvas.getContext('2d')
+  const grad = ctx.createRadialGradient(32, 32, 0, 32, 32, 32)
+  grad.addColorStop(0, 'rgba(255,255,255,1)')
+  grad.addColorStop(0.5, 'rgba(235,250,255,.8)')
+  grad.addColorStop(1, 'rgba(235,250,255,0)')
+  ctx.fillStyle = grad
+  ctx.fillRect(0, 0, 64, 64)
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.colorSpace = THREE.SRGBColorSpace
+  return texture
+})()
+const weatherMaterial = new THREE.PointsMaterial({ map: weatherPointTexture, alphaTest: 0.02, color: 0x9fd4ff, size: 0.055, transparent: true, opacity: 0, depthWrite: false, toneMapped: false, sizeAttenuation: true })
+const weatherPoints = new THREE.Points(weatherGeometry, weatherMaterial)
+weatherPoints.frustumCulled = false
+weatherPoints.visible = false
+weatherGroup.add(weatherPoints)
+const rainPositions = new Float32Array(WEATHER_COUNT * 6)
+const rainGeometry = new THREE.BufferGeometry()
+rainGeometry.setAttribute('position', new THREE.BufferAttribute(rainPositions, 3))
+const rainMaterial = new THREE.LineBasicMaterial({ color: 0x9fd4ff, transparent: true, opacity: 0, depthWrite: false, toneMapped: false })
+const rainLines = new THREE.LineSegments(rainGeometry, rainMaterial)
+rainLines.frustumCulled = false
+rainLines.visible = false
+weatherGroup.add(rainLines)
+const RAIN_COUNT = 80
+rainGeometry.setDrawRange(0, RAIN_COUNT * 2)
+const weatherParticles = []
+let weatherMode = 'clear'
+let weatherWind = 0
+let weatherCloudLevel = 0
+let weatherPointLevel = 0
+
+function seedWeatherParticles(mode) {
+  const isWind = mode === 'wind'
+  const isSnow = mode === 'snow'
+  for (let i = 0; i < WEATHER_COUNT; i++) {
+    const x = (Math.random() - 0.5) * (isWind ? 34 : 26)
+    const y = isWind ? 1.5 + Math.random() * 7 : Math.random() * 18
+    const z = (Math.random() - 0.5) * (isWind ? 22 : 24)
+    weatherParticles[i] = { x, y, z, speed: isSnow ? 0.035 + Math.random() * 0.035 : 0.16 + Math.random() * 0.2, drift: Math.random() * 2 - 1 }
+    weatherPositions[i * 3] = x
+    weatherPositions[i * 3 + 1] = y
+    weatherPositions[i * 3 + 2] = z
+  }
+  weatherGeometry.attributes.position.needsUpdate = true
+}
+
+function setWeather(mode, wind = 0) {
+  weatherMode = ['clear', 'cloudy', 'rain', 'snow', 'wind', 'storm'].includes(mode) ? mode : 'clear'
+  weatherWind = Number.isFinite(wind) ? wind : 0
+  const wet = weatherMode === 'rain' || weatherMode === 'storm'
+  const snow = weatherMode === 'snow'
+  const windy = weatherMode === 'wind'
+  weatherPoints.visible = snow || windy
+  rainLines.visible = wet
+  weatherMaterial.color.set(snow ? 0xe6f5ff : 0xcfe8ff)
+  weatherMaterial.size = snow ? 0.17 : 0.06
+  if (wet) rainGeometry.setDrawRange(0, RAIN_COUNT * 2)
+  if (wet || snow || windy) seedWeatherParticles(weatherMode)
+}
+
+function refreshWeather() {
+  let location = null
+  try {
+    const raw = localStorage.getItem('agent-office-weather-location')
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (Number.isFinite(parsed?.lat) && Number.isFinite(parsed?.lon)) location = parsed
+    }
+  } catch {}
+  if (!location) {
+    setWeather('clear')
+    return
+  }
+  fetch(`/agent-office/api/weather?lat=${encodeURIComponent(location.lat)}&lon=${encodeURIComponent(location.lon)}`, { cache: 'no-store' })
+    .then(response => response.ok ? response.json() : null)
+    .then(data => {
+      if (!data?.ok) {
+        setWeather('clear')
+        return
+      }
+      const code = Number(data.code)
+      let mode = 'clear'
+      if (code >= 95) mode = 'storm'
+      else if (code >= 71 && code <= 86) mode = 'snow'
+      else if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) mode = 'rain'
+      else if (code === 2 || code === 3 || code === 45 || code === 48) mode = 'cloudy'
+      else if (Number(data.wind) >= 28) mode = 'wind'
+      setWeather(mode, Number(data.wind))
+    })
+    .catch(() => setWeather('clear'))
+}
+
+function updateWeatherFrame(t) {
+  const cloudy = weatherMode === 'cloudy' || weatherMode === 'wind'
+  weatherCloudLevel += ((cloudy ? 1 : 0) - weatherCloudLevel) * 0.025
+  for (const cloud of weatherClouds) {
+    cloud.material.opacity = weatherCloudLevel * 0.22
+    cloud.position.x = cloud.userData.baseX + Math.sin(t * 0.035 + cloud.userData.phase) * 2.2
+    cloud.position.z = cloud.userData.baseZ + Math.cos(t * 0.03 + cloud.userData.phase) * 1.2
+  }
+  const active = weatherPoints.visible
+  const wet = weatherMode === 'rain' || weatherMode === 'storm'
+  weatherPointLevel += (((active || wet) ? 1 : 0) - weatherPointLevel) * 0.06
+  weatherMaterial.opacity = weatherPointLevel * (weatherMode === 'snow' ? 0.6 : 0.5)
+  rainMaterial.opacity = weatherPointLevel * 0.3
+  if (wet) {
+    for (let i = 0; i < RAIN_COUNT; i++) {
+      const p = weatherParticles[i]
+      if (!p) continue
+      p.y -= p.speed * 0.95
+      p.x += weatherWind * 0.0015 + p.drift * 0.0012
+      if (p.y < 0) { p.y = 17; p.x = (Math.random() - 0.5) * 26; p.z = (Math.random() - 0.5) * 24 }
+      rainPositions[i * 6] = p.x
+      rainPositions[i * 6 + 1] = p.y
+      rainPositions[i * 6 + 2] = p.z
+      rainPositions[i * 6 + 3] = p.x + weatherWind * 0.0025
+      rainPositions[i * 6 + 4] = p.y - 0.22
+      rainPositions[i * 6 + 5] = p.z
+    }
+    rainGeometry.attributes.position.needsUpdate = true
+  } else if (active) {
+    for (let i = 0; i < WEATHER_COUNT; i++) {
+      const p = weatherParticles[i]
+      if (!p) continue
+      if (weatherMode === 'wind') {
+        p.x += 0.11 + Math.abs(weatherWind) * 0.002
+        p.y += Math.sin(t * 1.3 + p.drift) * 0.004
+        if (p.x > 18) p.x = -18
+      } else if (weatherMode === 'snow') {
+        p.y -= p.speed * 0.55
+        p.x += Math.sin(t * 1.4 + p.drift * 5) * 0.006
+        if (p.y < 0) { p.y = 16; p.x = (Math.random() - 0.5) * 26 }
+      } else {
+        p.y -= p.speed
+        p.x += (weatherWind * 0.0015 + p.drift * 0.001)
+        if (p.y < 0) { p.y = 17; p.x = (Math.random() - 0.5) * 26; p.z = (Math.random() - 0.5) * 24 }
+      }
+      weatherPositions[i * 3] = p.x
+      weatherPositions[i * 3 + 1] = p.y
+      weatherPositions[i * 3 + 2] = p.z
+    }
+    weatherGeometry.attributes.position.needsUpdate = true
+  }
+}
+
+window.addEventListener('storage', event => {
+  if (event.key === 'agent-office-weather-location') refreshWeather()
+})
+
 function disposeGroup(group) {
   group.traverse(object => {
     // CSS2D 标签是独立 DOM，scene 移除后渲染器不会回收，必须手动删掉，否则重建会累积重影
@@ -475,7 +705,7 @@ function disposeGroup(group) {
     if (object.material) {
       const materials = Array.isArray(object.material) ? object.material : [object.material]
       for (const material of materials) {
-        if (material.map && material.map !== glowTexture && material.map !== shadowTexture && material.map !== floorTexture && material.map !== sweatTexture && material.map !== scribbleTexture) material.map.dispose()
+        if (material.map && material.map !== glowTexture && material.map !== shadowTexture && material.map !== floorTexture && material.map !== sweatTexture && material.map !== scribbleTexture && material.map !== keyboardTexture) material.map.dispose()
         material.dispose()
       }
     }
@@ -837,16 +1067,65 @@ function workstation(agent, spot) {
     group.add(footrest)
   }
 
-  const keyboard = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.02, 0.15), metalMat)
-  keyboard.position.set(spot.x + 0.24, 0.6, spot.z + 0.82)
-  group.add(keyboard)
+  // 键盘：底座 + 键帽贴图 + 底部氛围灯
+  const keyboardBase = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.03, 0.18), new THREE.MeshStandardMaterial({ color: 0x111923, roughness: 0.45, metalness: 0.4 }))
+  keyboardBase.position.set(spot.x + 0.24, 0.575, spot.z + 0.8)
+  group.add(keyboardBase)
+  const keyboardTop = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.49, 0.16),
+    new THREE.MeshBasicMaterial({ map: keyboardTexture, toneMapped: false }),
+  )
+  keyboardTop.rotation.x = -Math.PI / 2
+  keyboardTop.position.set(spot.x + 0.24, 0.592, spot.z + 0.8)
+  group.add(keyboardTop)
+  const keyboardGlow = new THREE.Mesh(
+    new THREE.BoxGeometry(0.48, 0.006, 0.012),
+    new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.8, toneMapped: false }),
+  )
+  keyboardGlow.position.set(spot.x + 0.24, 0.58, spot.z + 0.9)
+  group.add(keyboardGlow)
 
-  const plate = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.16, 0.02), new THREE.MeshBasicMaterial({ color: 0x0e151d }))
-  plate.position.set(spot.x + 0.6, 0.63, spot.z + 0.86)
-  group.add(plate)
-  const plateDot = new THREE.Mesh(new THREE.CircleGeometry(0.035, 12), new THREE.MeshBasicMaterial({ color }))
-  plateDot.position.set(spot.x + 0.55, 0.63, spot.z + 0.872)
-  group.add(plateDot)
+  // 鼠标垫 + 鼠标 + 滚轮
+  const mousePad = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.008, 0.22), new THREE.MeshStandardMaterial({ color: 0x101923, roughness: 0.92, metalness: 0.05 }))
+  mousePad.position.set(spot.x + 0.63, 0.588, spot.z + 0.83)
+  group.add(mousePad)
+  const mouse = new THREE.Mesh(
+    new RoundedBoxGeometry(0.09, 0.04, 0.13, 3, 0.018),
+    new THREE.MeshStandardMaterial({ color: 0x1c2835, roughness: 0.5, metalness: 0.25 }),
+  )
+  mouse.position.set(spot.x + 0.63, 0.61, spot.z + 0.82)
+  mouse.rotation.y = -0.2
+  group.add(mouse)
+  const wheel = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.018, 0.035), new THREE.MeshBasicMaterial({ color }))
+  wheel.position.set(spot.x + 0.63, 0.64, spot.z + 0.79)
+  group.add(wheel)
+
+  // 键盘 / 鼠标线缆
+  const cableMat = new THREE.MeshStandardMaterial({ color: 0x607385, roughness: 0.38, metalness: 0.3 })
+  const keyboardCable = new THREE.Mesh(
+    new THREE.TubeGeometry(new THREE.CatmullRomCurve3([
+      new THREE.Vector3(spot.x + 0.24, 0.592, spot.z + 0.71),
+      new THREE.Vector3(spot.x + 0.18, 0.592, spot.z + 0.62),
+      new THREE.Vector3(spot.x - 0.06, 0.592, spot.z + 0.54),
+      new THREE.Vector3(spot.x - 0.34, 0.592, spot.z + 0.48),
+      new THREE.Vector3(spot.x - 0.48, 0.6, spot.z + 0.42),
+    ], false, 'centripetal'), 18, 0.008, 5, false),
+    cableMat,
+  )
+  group.add(keyboardCable)
+  const mouseCable = new THREE.Mesh(
+    new THREE.TubeGeometry(new THREE.CatmullRomCurve3([
+      new THREE.Vector3(spot.x + 0.63, 0.6, spot.z + 0.76),
+      new THREE.Vector3(spot.x + 0.64, 0.592, spot.z + 0.62),
+      new THREE.Vector3(spot.x + 0.34, 0.592, spot.z + 0.54),
+      new THREE.Vector3(spot.x - 0.08, 0.592, spot.z + 0.48),
+      new THREE.Vector3(spot.x - 0.46, 0.6, spot.z + 0.42),
+    ], false, 'centripetal'), 18, 0.007, 5, false),
+    cableMat,
+  )
+  group.add(mouseCable)
+
+
 
   return group
 }
@@ -1347,6 +1626,8 @@ let targetGoal = null
 let zoomGoal = null
 let tower = null
 let loading = true
+let introPlayed = false
+let introTl = null
 
 function viewScale() {
   return clamp(1638 / Math.max(900, window.innerWidth), 0.82, 1.5)
@@ -1603,6 +1884,68 @@ let mcpDashes = []
 let mcpGroup = null
 let mcpSign = null
 let sciFiIcons = []
+let studyClock = null
+let annexCats = []
+
+function drawStudyClock(seconds, alarm) {
+  if (!studyClock) return
+  const ctx = studyClock.ctx
+  const w = 512
+  const h = 512
+  const total = Math.max(0, Math.min(25 * 60, seconds))
+  const mm = String(Math.floor(total / 60)).padStart(2, '0')
+  const ss = String(total % 60).padStart(2, '0')
+  ctx.clearRect(0, 0, w, h)
+  ctx.save()
+  ctx.translate(256, 256)
+  // 背后柔光
+  const glow = ctx.createRadialGradient(0, 0, 40, 0, 0, 240)
+  glow.addColorStop(0, alarm ? 'rgba(255,92,92,.34)' : 'rgba(80,210,255,.24)')
+  glow.addColorStop(1, 'rgba(80,210,255,0)')
+  ctx.fillStyle = glow
+  ctx.beginPath(); ctx.arc(0, 0, 240, 0, Math.PI * 2); ctx.fill()
+  // 铃铛
+  ctx.fillStyle = '#263744'
+  ctx.strokeStyle = alarm ? '#ff6b6b' : '#9fe7ff'
+  ctx.lineWidth = 10
+  for (const x of [-104, 104]) {
+    ctx.beginPath(); ctx.arc(x, -190, 54, Math.PI, 0); ctx.fill(); ctx.stroke()
+    ctx.beginPath(); ctx.moveTo(x - 54, -190); ctx.lineTo(x + 54, -190); ctx.stroke()
+  }
+  // 支脚
+  ctx.lineCap = 'round'
+  ctx.beginPath(); ctx.moveTo(-110, 190); ctx.lineTo(-160, 248); ctx.stroke()
+  ctx.beginPath(); ctx.moveTo(110, 190); ctx.lineTo(160, 248); ctx.stroke()
+  // 表身
+  ctx.fillStyle = '#e9e2d2'
+  ctx.beginPath(); ctx.arc(0, 0, 170, 0, Math.PI * 2); ctx.fill()
+  ctx.lineWidth = 22
+  ctx.strokeStyle = alarm ? '#d84343' : '#294654'
+  ctx.beginPath(); ctx.arc(0, 0, 170, 0, Math.PI * 2); ctx.stroke()
+  // 内圈
+  ctx.fillStyle = alarm ? '#3a1418' : '#112029'
+  ctx.beginPath(); ctx.arc(0, 0, 140, 0, Math.PI * 2); ctx.fill()
+  ctx.strokeStyle = alarm ? '#ff8f8f' : '#8fe7ff'
+  ctx.lineWidth = 3
+  ctx.beginPath(); ctx.arc(0, 0, 140, 0, Math.PI * 2); ctx.stroke()
+  // 数字
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillStyle = alarm ? '#ffb3b3' : '#9fe7ff'
+  ctx.font = '600 26px ui-monospace, Menlo, monospace'
+  ctx.fillText('FOCUS  TIMER', 0, -88)
+  ctx.fillStyle = alarm ? '#ffd0d0' : '#f2fbff'
+  ctx.font = '800 98px ui-monospace, Menlo, monospace'
+  ctx.fillText(mm + ':' + ss, 0, 8)
+  ctx.fillStyle = alarm ? '#ff8f8f' : 'rgba(159,231,255,.75)'
+  ctx.font = '600 22px "PingFang SC", system-ui, sans-serif'
+  ctx.fillText(alarm ? '时间到' : '备考倒计时', 0, 72)
+  // 顶部小灯
+  ctx.fillStyle = alarm ? '#ff6b6b' : '#7dd3a0'
+  ctx.beginPath(); ctx.arc(0, -118, 7, 0, Math.PI * 2); ctx.fill()
+  ctx.restore()
+  studyClock.texture.needsUpdate = true
+}
 
 function buildAnnex() {
   annex = new THREE.Group()
@@ -1649,6 +1992,12 @@ function buildAnnex() {
 
   // 教室布局：讲台在后墙，三张工位面朝讲台
   // 1) 通用工位
+  const frosted = new THREE.MeshStandardMaterial({ color: 0xdcefff, transparent: true, opacity: 0.16, roughness: 0.86, metalness: 0.02, depthWrite: false, side: THREE.DoubleSide })
+  function addFrostedHeader(parent, x = 0, width = 1.28, y = 1.16, z = -0.38) {
+    box(width, 0.42, 0.035, frosted, x, y, z, parent)
+    box(width, 0.025, 0.05, metal, x, y + 0.23, z, parent)
+    box(width, 0.025, 0.05, metal, x, y - 0.23, z, parent)
+  }
   function addDesk(x, z, matTop = wood) {
     const g = new THREE.Group()
     g.position.set(x, 0, z)
@@ -1671,29 +2020,38 @@ function buildAnnex() {
     base.position.set(0, 0.02, 0.55)
     g.add(base)
     annex.add(g)
+    addFrostedHeader(g)
+    return g
   }
   addDesk(-2.35, 0.85)
 
-  // 2) 备考隔间（产品里的学习空间）
-  const booth = new THREE.Group()
-  booth.position.set(0, 0, 0.85)
-  box(1.55, 1.78, 0.04, glass, 0, 0.9, -0.66, booth)
-  box(0.04, 1.78, 1.28, glass, -0.76, 0.9, 0, booth)
-  box(0.04, 1.78, 1.28, glass, 0.76, 0.9, 0, booth)
-  box(1.58, 0.06, 0.06, metal, 0, 1.79, -0.66, booth)
-  box(0.06, 0.06, 1.32, metal, -0.76, 1.79, 0, booth)
-  box(0.06, 0.06, 1.32, metal, 0.76, 1.79, 0, booth)
-  box(0.74, 0.055, 0.44, wood, 0, 0.7, -0.2, booth)
-  box(0.56, 0.34, 0.04, dark, 0, 0.93, -0.4, booth)
-  const boothScreen = new THREE.Mesh(new THREE.PlaneGeometry(0.48, 0.25), cyan)
-  boothScreen.position.set(0, 0.93, -0.375)
-  booth.add(boothScreen)
-  box(0.42, 0.06, 0.38, dark, 0, 0.44, 0.2, booth)
-  box(0.42, 0.5, 0.06, dark, 0, 0.69, 0.4, booth)
-  const boothLamp = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 10), warm)
-  boothLamp.position.set(0.5, 1.34, -0.32)
-  booth.add(boothLamp)
-  annex.add(booth)
+  // 2) 备考隔间：同一排的学习桌 + 透明磨砂隐私隔板
+  const studyDesk = addDesk(0, 0.85)
+  // 两侧磨砂挡板，形成半包围学习位
+  box(0.035, 1.15, 1.15, frosted, -0.72, 0.85, 0.12, studyDesk)
+  box(0.035, 1.15, 1.15, frosted, 0.72, 0.85, 0.12, studyDesk)
+
+  // 备考倒计时闹钟
+  const clockCanvas = document.createElement('canvas')
+  clockCanvas.width = clockCanvas.height = 512
+  const clockCtx = clockCanvas.getContext('2d')
+  const clockTexture = new THREE.CanvasTexture(clockCanvas)
+  clockTexture.colorSpace = THREE.SRGBColorSpace
+  const clockSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: clockTexture, transparent: true, depthWrite: false, toneMapped: false }))
+  clockSprite.position.set(0, 2.45, 0.85)
+  clockSprite.scale.set(0.98, 0.98, 1)
+  annex.add(clockSprite)
+  studyClock = {
+    sprite: clockSprite,
+    ctx: clockCtx,
+    texture: clockTexture,
+    endAt: Date.now() + 25 * 60 * 1000,
+    lastSecond: -1,
+    alarmAt: 0,
+  }
+  drawStudyClock(25 * 60, false)
+  box(0.035, 0.025, 1.15, metal, -0.72, 1.51, 0.12, studyDesk)
+  box(0.035, 0.025, 1.15, metal, 0.72, 1.51, 0.12, studyDesk)
 
   // 3) 题库工位：科幻桌面 + 浮动 OCR / 数据库 / 试卷投影
   const sci = new THREE.Group()
@@ -1737,6 +2095,7 @@ function buildAnnex() {
   sciBase.position.set(0, 0.02, 0.55)
   sci.add(sciBase)
   annex.add(sci)
+  addFrostedHeader(sci)
   const halo = new THREE.Mesh(
     new THREE.RingGeometry(0.4, 0.44, 48),
     new THREE.MeshBasicMaterial({ color: 0x6fdcff, transparent: true, opacity: 0.35, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending }),
@@ -1767,8 +2126,10 @@ function buildAnnex() {
     const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false, toneMapped: false }))
     sprite.scale.set(scale, scale, 1)
     sprite.position.set(2.35 + x, y, 0.85 + z)
+    sprite.material.opacity = 0
     annex.add(sprite)
     sprite.userData.baseY = y
+    sprite.userData.baseScale = scale
     sprite.userData.phase = sciFiIcons.length * 0.9
     sciFiIcons.push(sprite)
     return sprite
@@ -1781,7 +2142,6 @@ function buildAnnex() {
     ctx.fillRect(42, 34, 22, 10)
     ctx.font = '700 15px ui-monospace, Menlo, monospace'
     ctx.textAlign = 'center'
-    ctx.fillText('OCR', 80, 128)
   })
   const dbTexture = iconCanvas(ctx => {
     for (let i = 0; i < 3; i++) {
@@ -1793,7 +2153,6 @@ function buildAnnex() {
     }
     ctx.font = '700 15px ui-monospace, Menlo, monospace'
     ctx.textAlign = 'center'
-    ctx.fillText('DB', 80, 140)
   })
   const paperTexture = iconCanvas(ctx => {
     ctx.beginPath(); ctx.roundRect(46, 28, 68, 92, 5); ctx.stroke()
@@ -1803,12 +2162,11 @@ function buildAnnex() {
     }
     ctx.font = '700 15px ui-monospace, Menlo, monospace'
     ctx.textAlign = 'center'
-    ctx.fillText('EXAM', 80, 142)
   })
 
-  iconSprite(ocrTexture, -0.5, 2.08, 0.12, 0.48)
-  iconSprite(dbTexture, 0, 2.2, 0.12, 0.48)
-  iconSprite(paperTexture, 0.5, 2.08, 0.12, 0.48)
+  iconSprite(ocrTexture, 0, 2.12, 0.12, 0.95)
+  iconSprite(dbTexture, 0, 2.12, 0.12, 0.95)
+  iconSprite(paperTexture, 0, 2.12, 0.12, 0.95)
 
   // 讲台（教室最前面，背靠后墙，面向三张工位）
   const podium = new THREE.Group()
@@ -1833,6 +2191,46 @@ function buildAnnex() {
   box(3.3, 1.25, 0.04, dark, 0, 1.55, -2.86)
   box(3.1, 0.03, 0.05, cyan, 0, 2.18, -2.83)
 
+  // 讲台 + 三席的猫咪图片
+  const addAnnexCat = (x, y, z, tint, scale = 0.48, shadowY = null) => {
+    const material = new THREE.SpriteMaterial({ map: faceTextures.happy, color: tint, transparent: true, depthWrite: false, toneMapped: false })
+    const sprite = new THREE.Sprite(material)
+    sprite.scale.set(scale, scale, 1)
+    sprite.position.set(x, y, z)
+    annex.add(sprite)
+    annexCats.push({ sprite, baseY: y, phase: annexCats.length * 1.3 })
+    if (shadowY !== null) {
+      const shadow = new THREE.Mesh(new THREE.PlaneGeometry(scale * 1.5, scale * 1.15), new THREE.MeshBasicMaterial({ map: shadowTexture, transparent: true, opacity: 0.34, depthWrite: false }))
+      shadow.rotation.x = -Math.PI / 2
+      shadow.position.set(x, shadowY, z)
+      annex.add(shadow)
+    }
+  }
+  addAnnexCat(-2.35, 0.74, 1.28, 0x7fa8ff, 0.46, 0.56)
+  addAnnexCat(0, 0.74, 1.28, 0xff6347, 0.46, 0.56)
+  addAnnexCat(2.35, 0.74, 1.28, 0x5ee7ff, 0.46, 0.56)
+  addAnnexCat(0, 1.5, -1.85, 0xffffff, 0.6, null)
+
+  // Annex 上方 Catora 招牌
+  const annexSignCanvas = document.createElement('canvas')
+  annexSignCanvas.width = 640
+  annexSignCanvas.height = 160
+  const actx = annexSignCanvas.getContext('2d')
+  actx.clearRect(0, 0, 640, 160)
+  actx.font = '900 76px Inter, "PingFang SC", system-ui, sans-serif'
+  actx.textAlign = 'center'
+  actx.textBaseline = 'middle'
+  actx.shadowColor = 'rgba(90,190,255,.85)'
+  actx.shadowBlur = 32
+  actx.fillStyle = '#e9f6ff'
+  actx.fillText('CATORA', 320, 80)
+  const annexSignTexture = new THREE.CanvasTexture(annexSignCanvas)
+  annexSignTexture.colorSpace = THREE.SRGBColorSpace
+  const annexSign = new THREE.Sprite(new THREE.SpriteMaterial({ map: annexSignTexture, transparent: true, depthWrite: false, toneMapped: false }))
+  annexSign.scale.set(2.8, 0.7, 1)
+  annexSign.position.set(0, 3.35, -0.9)
+  annex.add(annexSign)
+
   // 室内灯
   const lightWarm = new THREE.PointLight(0xffd8b0, 2.6, 11, 2)
   lightWarm.position.set(0, 2.15, 0.4)
@@ -1842,20 +2240,6 @@ function buildAnnex() {
   lightCool.position.set(0, 2.3, -1.8)
   annex.add(lightCool)
   annexLights.push({ light: lightCool, night: 1.8, day: 0.8 })
-
-  // 区域标签
-  const tag = (text, x, y, z) => {
-    const el = document.createElement('div')
-    el.className = 'officeTag'
-    el.textContent = text
-    const obj = new CSS2DObject(el)
-    obj.position.set(x, y, z)
-    annex.add(obj)
-  }
-  tag('讲台', 0, 1.9, -1.95)
-  tag('通用', -2.35, 1.45, 0.85)
-  tag('备考', 0, 2.0, 0.85)
-  tag('题库', 2.35, 1.27, 0.85)
 
   // MCP 虚线 + 流光 + 暂未接通标牌
   mcpGroup = new THREE.Group()
@@ -1910,26 +2294,33 @@ function buildAnnex() {
     sctx.beginPath(); sctx.moveTo(cx - size, cy - size); sctx.lineTo(cx + size, cy + size); sctx.stroke()
     sctx.beginPath(); sctx.moveTo(cx + size, cy - size); sctx.lineTo(cx - size, cy + size); sctx.stroke()
   }
-  drawX(58, 70, 19)
-  drawX(454, 70, 19)
+  drawX(74, 74, 12)
+  drawX(438, 74, 12)
   sctx.fillStyle = '#d8efff'
   sctx.textAlign = 'center'
-  sctx.font = '700 58px ui-monospace, Menlo, monospace'
-  sctx.fillText('MCP', 256, 89)
-  sctx.fillStyle = 'rgba(120,190,255,.82)'
-  sctx.font = '500 22px ui-monospace, Menlo, monospace'
-  sctx.fillText('暂未接通', 256, 128)
+  sctx.font = '700 30px ui-monospace, Menlo, monospace'
+  sctx.fillText('MCP', 256, 86)
   const signTex = new THREE.CanvasTexture(signCanvas)
   signTex.colorSpace = THREE.SRGBColorSpace
   mcpSign = new THREE.Sprite(new THREE.SpriteMaterial({ map: signTex, transparent: true, depthWrite: false, toneMapped: false }))
-  mcpSign.position.set(5.6, 4.55, 1.18)
-  mcpSign.scale.set(3.35, 1.05, 1)
+  mcpSign.position.set(5.6, 4.3, 1.18)
+  mcpSign.scale.set(1.8, 0.45, 1)
+  mcpSign.visible = false
   mcpGroup.add(mcpSign)
 
   const signGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture, color: 0x3f9dff, transparent: true, opacity: 0.24, blending: THREE.AdditiveBlending, depthWrite: false }))
   signGlow.position.copy(mcpSign.position)
-  signGlow.scale.set(4.4, 1.8, 1)
+  signGlow.scale.set(2.5, 0.8, 1)
+  signGlow.visible = false
   mcpGroup.add(signGlow)
+
+  // 小号 MCP 标签：固定屏幕字号，和小号说明文字一致
+  const mcpTagEl = document.createElement('div')
+  mcpTagEl.className = 'mcpTag'
+  mcpTagEl.innerHTML = '<span class="x">✕</span><span>MCP</span><span class="x">✕</span>'
+  const mcpTag = new CSS2DObject(mcpTagEl)
+  mcpTag.position.set(5.55, 3.62, 1.02)
+  mcpGroup.add(mcpTag)
 }
 
 function rebuild(list) {
@@ -2067,6 +2458,7 @@ function tick() {
   const t = clock.getElapsedTime()
   requestAnimationFrame(tick)
   applyThemeFrame()
+  updateWeatherFrame(t)
   if (mcpCurve && mcpBeads.length > 0) {
     const flow = clock.getElapsedTime()
     for (const bead of mcpBeads) {
@@ -2084,9 +2476,40 @@ function tick() {
       dash.mesh.position.copy(point)
       dash.mesh.quaternion.setFromUnitVectors(axis, tangent.normalize())
     }
-    if (mcpSign) mcpSign.position.y = 4.55 + Math.sin(flow * 0.9) * 0.04
-    for (const icon of sciFiIcons) {
-      icon.position.y = icon.userData.baseY + Math.sin(flow * 2.2 + icon.userData.phase) * 0.04
+    if (mcpSign) mcpSign.position.y = 4.3 + Math.sin(flow * 0.9) * 0.025
+    if (studyClock) {
+      const now = Date.now()
+      if (now >= studyClock.endAt) {
+        if (!studyClock.alarmAt) studyClock.alarmAt = now
+        if (now - studyClock.alarmAt > 8000) {
+          studyClock.endAt = now + 25 * 60 * 1000
+          studyClock.alarmAt = 0
+        }
+      }
+      const remainMs = Math.max(0, studyClock.endAt - now)
+      const remainSec = Math.ceil(remainMs / 1000)
+      if (remainSec !== studyClock.lastSecond) {
+        studyClock.lastSecond = remainSec
+        drawStudyClock(remainSec, remainMs === 0)
+      }
+      studyClock.sprite.position.y = 2.45 + Math.sin(flow * 1.1) * 0.03
+    }
+
+    for (const cat of annexCats) {
+      cat.sprite.position.y = cat.baseY + Math.sin(flow * 1.7 + cat.phase) * 0.065
+    }
+
+    // 三个图标轮流展示：一次只亮一个，淡入淡出
+    const iconCycle = 2.4
+    const activeIcon = Math.floor(flow / iconCycle) % Math.max(1, sciFiIcons.length)
+    for (let i = 0; i < sciFiIcons.length; i++) {
+      const icon = sciFiIcons[i]
+      const on = i === activeIcon
+      icon.material.opacity += ((on ? 1 : 0) - icon.material.opacity) * 0.14
+      const targetScale = icon.userData.baseScale * (on ? 1.12 : 0.86)
+      icon.scale.x += (targetScale - icon.scale.x) * 0.14
+      icon.scale.y += (targetScale - icon.scale.y) * 0.14
+      icon.position.y = icon.userData.baseY + Math.sin(flow * 2.2 + icon.userData.phase) * 0.04 + (on ? 0.04 : 0)
     }
   }
 
@@ -2295,6 +2718,81 @@ async function refreshBalance() {
   }
 }
 
+function finishIntro() {
+  if (introTl) {
+    introTl.kill()
+    introTl = null
+  }
+  for (const floor of floors) {
+    floor.group.scale.set(1, 1, 1)
+    floor.group.position.y = floor.offset.y
+  }
+  if (annex) {
+    annex.visible = true
+    annex.scale.setScalar(0.84)
+    annex.position.y = 0
+  }
+  if (mcpGroup) {
+    mcpGroup.visible = true
+    mcpGroup.scale.set(1, 1, 1)
+  }
+  const pose = globalPose(floors.length)
+  controls.target.copy(pose.target)
+  camera.position.copy(pose.position)
+  controls.update()
+  document.body.classList.remove('intro')
+  const intro = $('#intro')
+  if (intro) {
+    intro.classList.add('done')
+    setTimeout(() => intro.remove(), 650)
+  }
+  introPlayed = true
+}
+
+function playIntro() {
+  if (introPlayed) return
+  const intro = $('#intro')
+  if (!intro) return
+  introPlayed = true
+  if (reduceMotion) {
+    finishIntro()
+    return
+  }
+  if (annex) {
+    annex.visible = true
+    annex.scale.setScalar(0.02)
+    annex.position.y = -2.4
+  }
+  if (mcpGroup) {
+    mcpGroup.visible = true
+    mcpGroup.scale.setScalar(0.01)
+  }
+  for (const floor of floors) {
+    floor.group.scale.set(0.02, 0.02, 0.02)
+    floor.group.position.y = floor.offset.y - 5.5
+  }
+  const pose = globalPose(floors.length)
+  camera.position.set(pose.position.x + 9, pose.position.y + 11, pose.position.z + 9)
+  controls.target.copy(pose.target)
+  controls.update()
+
+  introTl = gsap.timeline()
+  introTl.to({ value: 0 }, { value: 1, duration: 2.4, ease: 'none' }, 0)
+  introTl.to(camera.position, { x: pose.position.x, y: pose.position.y, z: pose.position.z, duration: 2.2, ease: 'power2.inOut' }, 0.15)
+  introTl.to(controls.target, { x: pose.target.x, y: pose.target.y, z: pose.target.z, duration: 2.2, ease: 'power2.inOut' }, 0.15)
+  floors.forEach((floor, i) => {
+    introTl.to(floor.group.scale, { x: 1, y: 1, z: 1, duration: 0.85, ease: 'back.out(1.35)' }, 0.25 + i * 0.3)
+    introTl.to(floor.group.position, { y: floor.offset.y, duration: 0.85, ease: 'power2.out' }, 0.25 + i * 0.3)
+  })
+  if (annex) {
+    introTl.to(annex.scale, { x: 0.84, y: 0.84, z: 0.84, duration: 0.95, ease: 'back.out(1.25)' }, 1.05)
+    introTl.to(annex.position, { y: 0, duration: 0.95, ease: 'power2.out' }, 1.05)
+  }
+  if (mcpGroup) introTl.to(mcpGroup.scale, { x: 1, y: 1, z: 1, duration: 0.8, ease: 'power2.out' }, 1.45)
+  introTl.call(() => document.body.classList.remove('intro'), null, 2.25)
+  introTl.to(intro, { opacity: 0, duration: 0.5, onComplete: () => intro.remove() }, 2.3)
+}
+
 async function poll() {
   try {
     const response = await fetch(API, { cache: 'no-store' })
@@ -2312,6 +2810,7 @@ async function poll() {
     if (sig !== structureSig) {
       structureSig = sig
       rebuild(list)
+      if (!introPlayed) playIntro()
     } else {
       for (const agent of list) {
         const entry = agentsById.get(agent.id)
@@ -2356,6 +2855,7 @@ window.__NS = {
   get focusFloor() { return focusFloor },
   setFloorFocus,
   toggleFloorFocus,
+  setWeather,
 }
 rebuild([])
 $('#offline').classList.add('show')
@@ -2363,9 +2863,11 @@ $('#offline').textContent = '正在读取本机会话…'
 buildAnnex()
 applyGlassSetting()
 loadCustomFace()
+refreshWeather()
 poll()
 setInterval(poll, 2000)
 refreshBalance()
 setInterval(refreshBalance, 60_000)
 tick()
 setTimeout(() => $('#hint').classList.add('hide'), 9000)
+setTimeout(() => { if (!introPlayed) finishIntro() }, 9000)
