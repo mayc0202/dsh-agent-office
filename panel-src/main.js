@@ -49,10 +49,57 @@ const stage = $('#stage')
 const labelLayer = $('#labels')
 const scene = new THREE.Scene()
 scene.background = new THREE.Color(0x050a14)
-scene.fog = new THREE.FogExp2(0x050a14, 0.0085)
+scene.fog = new THREE.FogExp2(0x050a14, 0.0044)
+
+// 晚霞天空：粉橙地平线、深蓝夜空、轻微云带
+const skyTexture = (() => {
+  const canvas = document.createElement('canvas')
+  canvas.width = 2048
+  canvas.height = 1024
+  const ctx = canvas.getContext('2d')
+  const grad = ctx.createLinearGradient(0, 0, 0, 1024)
+  grad.addColorStop(0, '#01040c')
+  grad.addColorStop(0.24, '#030b1a')
+  grad.addColorStop(0.38, '#081529')
+  grad.addColorStop(0.45, '#2b2b52')
+  grad.addColorStop(0.48, '#5d3a55')
+  grad.addColorStop(0.495, '#e18a62')
+  grad.addColorStop(0.515, '#b56e58')
+  grad.addColorStop(0.56, '#4b2a3c')
+  grad.addColorStop(1, '#080b14')
+  ctx.fillStyle = grad
+  ctx.fillRect(0, 0, 2048, 1024)
+  const sun = ctx.createRadialGradient(640, 520, 0, 640, 520, 420)
+  sun.addColorStop(0, 'rgba(255,220,170,.65)')
+  sun.addColorStop(.2, 'rgba(255,155,100,.32)')
+  sun.addColorStop(1, 'rgba(255,120,80,0)')
+  ctx.fillStyle = sun
+  ctx.fillRect(0, 0, 2048, 1024)
+  for (let i = 0; i < 7; i++) {
+    const y = 418 + i * 13
+    const cloud = ctx.createLinearGradient(0, y, 2048, y)
+    cloud.addColorStop(0, 'rgba(255,185,145,0)')
+    cloud.addColorStop(.3 + i * .03, `rgba(255,190,155,${.05 + i * .008})`)
+    cloud.addColorStop(.62, `rgba(255,155,125,${.035 + i * .006})`)
+    cloud.addColorStop(1, 'rgba(255,185,145,0)')
+    ctx.fillStyle = cloud
+    ctx.fillRect(0, y, 2048, 2 + i * .6)
+  }
+  for (let i = 0; i < 60; i++) {
+    const x = Math.random() * 2048
+    const y = Math.random() * 360
+    ctx.fillStyle = `rgba(255,235,210,${.15 + Math.random() * .35})`
+    ctx.fillRect(x, y, 1.2, 1.2)
+  }
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.colorSpace = THREE.SRGBColorSpace
+  texture.mapping = THREE.EquirectangularReflectionMapping
+  return texture
+})()
+scene.background = skyTexture
 
 const aspectOf = () => stage.clientWidth / Math.max(1, stage.clientHeight)
-const camera = new THREE.PerspectiveCamera(36, aspectOf(), 0.1, 400)
+const camera = new THREE.PerspectiveCamera(50, aspectOf(), 0.1, 900)
 camera.position.set(16, 12, 20)
 camera.updateProjectionMatrix()
 
@@ -68,6 +115,10 @@ const composer = new EffectComposer(renderer)
 composer.addPass(new RenderPass(scene, camera))
 const bloom = new UnrealBloomPass(new THREE.Vector2(stage.clientWidth, stage.clientHeight), 0.55, 0.8, 0.72)
 composer.addPass(bloom)
+
+const pmrem = new THREE.PMREMGenerator(renderer)
+scene.environment = pmrem.fromEquirectangular(skyTexture).texture
+scene.environmentIntensity = 0.62
 
 const labelRenderer = new CSS2DRenderer()
 labelRenderer.setSize(stage.clientWidth, stage.clientHeight)
@@ -99,9 +150,12 @@ scene.add(rim)
 const fill = new THREE.DirectionalLight(0x8fbaff, 0.6)
 fill.position.set(-12, 8, 20)
 scene.add(fill)
+const sunsetLight = new THREE.DirectionalLight(0xff9b68, 1.1)
+sunsetLight.position.set(-38, 16, -34)
+scene.add(sunsetLight)
 
 const ground = new THREE.Mesh(
-  new THREE.CircleGeometry(90, 72),
+  new THREE.CircleGeometry(560, 110),
   new THREE.MeshStandardMaterial({ color: 0x070d18, roughness: 0.9, metalness: 0.25 }),
 )
 ground.rotation.x = -Math.PI / 2
@@ -123,39 +177,274 @@ horizon.position.y = -1.55
 horizon.visible = false
 scene.add(horizon)
 
-/* 夜晚写字楼天际线（背景楼群） */
+/* 方块夜城：倒角方块堆叠 + 细缝 + 抛光金块 */
 const city = new THREE.Group()
 city.position.y = -1.55
 scene.add(city)
-const makeWindowTexture = () => {
+const cityBeacons = []
+const cityWindowMats = []
+const cityGoldMats = []
+const cityNeonMats = []
+const cityBillboardMats = []
+const cityBillboards = []
+const animatedAdScreens = []
+const cityTowerGroups = []
+let cityTowerOrder = 0
+
+const cityBlockGeometry = new RoundedBoxGeometry(1, 1, 1, 2, 0.075)
+const makeFacadeTexture = () => {
   const canvas = document.createElement('canvas')
-  canvas.width = 128
-  canvas.height = 256
+  canvas.width = 256
+  canvas.height = 512
   const ctx = canvas.getContext('2d')
-  ctx.fillStyle = '#04070d'
-  ctx.fillRect(0, 0, 128, 256)
-  for (let y = 5; y < 250; y += 9) {
-    for (let x = 5; x < 122; x += 9) {
-      if (Math.random() > 0.64) {
+  ctx.fillStyle = '#02050b'
+  ctx.fillRect(0, 0, 256, 512)
+  for (let row = 0; row < 34; row++) {
+    for (let col = 0; col < 12; col++) {
+      const x = 8 + col * 20
+      const y = 10 + row * 14
+      if (Math.random() > 0.67) {
         const r = Math.random()
-        ctx.fillStyle = r > 0.86 ? 'rgba(255,214,160,.95)'
-          : r > 0.44 ? 'rgba(140,205,255,.95)' : 'rgba(95,235,255,.85)'
-        ctx.fillRect(x, y, 2.8, 4)
+        ctx.fillStyle = r > 0.82 ? 'rgba(255,206,150,.94)'
+          : r > 0.4 ? 'rgba(150,210,255,.9)' : 'rgba(105,240,255,.78)'
+        ctx.fillRect(x, y, 9, 4)
+        if (Math.random() > 0.8) {
+          ctx.fillStyle = 'rgba(255,255,255,.5)'
+          ctx.fillRect(x + 2, y + 1, 2, 1)
+        }
       }
     }
   }
   const texture = new THREE.CanvasTexture(canvas)
   texture.colorSpace = THREE.SRGBColorSpace
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping
-  texture.repeat.set(2.4, 3.2)
   return texture
 }
-const cityWindowTextures = [makeWindowTexture(), makeWindowTexture(), makeWindowTexture()]
-const cityMats = [0, 1, 2].map(i => new THREE.MeshBasicMaterial({
-  map: cityWindowTextures[i],
-  color: [0x5f86a8, 0x567c9e, 0x6f95b5][i],
-}))
-const cityBeacons = []
+for (let i = 0; i < 3; i++) {
+  const texture = makeFacadeTexture()
+  cityWindowMats.push(new THREE.MeshStandardMaterial({
+    color: 0x03080f,
+    roughness: 0.72,
+    metalness: 0.12,
+    emissive: 0xffffff,
+    emissiveMap: texture,
+    emissiveIntensity: 1.35,
+    envMapIntensity: 0.22,
+    fog: false,
+  }))
+}
+for (const color of [0xd6a13c, 0xc4882b, 0xe9bd68]) {
+  cityGoldMats.push(new THREE.MeshPhysicalMaterial({
+    color,
+    roughness: 0.13,
+    metalness: 1,
+    clearcoat: 1,
+    clearcoatRoughness: 0.08,
+    emissive: 0xc77418,
+    emissiveIntensity: 0.42,
+    envMapIntensity: 2.4,
+    fog: false,
+  }))
+}
+
+// 无文字、无商标的户外广告画面
+const makeAdTexture = (kind) => {
+  const canvas = document.createElement('canvas')
+  canvas.width = 512
+  canvas.height = 288
+  const ctx = canvas.getContext('2d')
+  const bg = ctx.createLinearGradient(0, 0, 512, 288)
+  if (kind === 0) { bg.addColorStop(0, '#17101a'); bg.addColorStop(.55, '#4a1828'); bg.addColorStop(1, '#e06d4e') }
+  else if (kind === 1) { bg.addColorStop(0, '#071326'); bg.addColorStop(.62, '#123c58'); bg.addColorStop(1, '#7ad4dc') }
+  else if (kind === 2) { bg.addColorStop(0, '#120b19'); bg.addColorStop(.5, '#3d1746'); bg.addColorStop(1, '#f09a64') }
+  else { bg.addColorStop(0, '#030915'); bg.addColorStop(.55, '#0b2440'); bg.addColorStop(1, '#fb815a') }
+  ctx.fillStyle = bg
+  ctx.fillRect(0, 0, 512, 288)
+  ctx.globalCompositeOperation = 'lighter'
+  const glow = ctx.createRadialGradient(390, 90, 4, 390, 90, 190)
+  glow.addColorStop(0, 'rgba(255,228,180,.75)')
+  glow.addColorStop(.4, 'rgba(255,140,100,.22)')
+  glow.addColorStop(1, 'rgba(255,100,80,0)')
+  ctx.fillStyle = glow
+  ctx.fillRect(0, 0, 512, 288)
+  ctx.globalCompositeOperation = 'source-over'
+  if (kind === 0) {
+    // 香水瓶
+    ctx.fillStyle = 'rgba(255,235,215,.92)'
+    ctx.beginPath(); ctx.roundRect(228, 96, 104, 142, 22); ctx.fill()
+    ctx.fillStyle = 'rgba(255,255,255,.5)'
+    ctx.fillRect(244, 116, 20, 98)
+    ctx.fillStyle = '#3a1a18'
+    ctx.fillRect(256, 72, 48, 26)
+    ctx.fillStyle = 'rgba(255,190,140,.8)'
+    ctx.beginPath(); ctx.ellipse(280, 170, 30, 42, 0, 0, Math.PI * 2); ctx.fill()
+  } else if (kind === 1) {
+    // 抽象织物
+    ctx.strokeStyle = 'rgba(230,250,255,.08)'
+    ctx.lineWidth = 2
+    for (let i = 0; i < 10; i++) { ctx.beginPath(); ctx.moveTo(0, 40 + i * 26); ctx.bezierCurveTo(160, 10 + i * 22, 340, 210 - i * 12, 512, 60 + i * 20); ctx.stroke() }
+    ctx.strokeStyle = 'rgba(206,242,255,.88)'
+    ctx.lineWidth = 7
+    ctx.beginPath(); ctx.moveTo(82, 226); ctx.bezierCurveTo(168, 74, 332, 232, 454, 62); ctx.stroke()
+    ctx.strokeStyle = 'rgba(255,255,255,.45)'
+    ctx.lineWidth = 2
+    ctx.beginPath(); ctx.moveTo(132, 236); ctx.bezierCurveTo(214, 100, 336, 242, 424, 86); ctx.stroke()
+  } else if (kind === 2) {
+    // 腕表 / 金色圆环
+    ctx.strokeStyle = 'rgba(255,215,155,.9)'
+    ctx.lineWidth = 3
+    for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.arc(386, 138, 28 + i * 19, 0, Math.PI * 2); ctx.stroke() }
+    ctx.fillStyle = 'rgba(245,230,210,.95)'
+    ctx.beginPath(); ctx.arc(386, 138, 22, 0, Math.PI * 2); ctx.fill()
+    ctx.fillStyle = '#2a1720'
+    ctx.fillRect(380, 104, 12, 68)
+    ctx.fillStyle = 'rgba(255,200,150,.35)'
+    ctx.fillRect(80, 64, 154, 4)
+    ctx.fillRect(80, 82, 98, 2)
+  } else {
+    // 抽象车身 / 光轨
+    ctx.strokeStyle = 'rgba(255,145,110,.75)'
+    ctx.lineWidth = 5
+    ctx.beginPath(); ctx.moveTo(42, 218); ctx.bezierCurveTo(180, 186, 306, 234, 486, 174); ctx.stroke()
+    ctx.strokeStyle = 'rgba(150,225,255,.8)'
+    ctx.lineWidth = 2
+    ctx.beginPath(); ctx.moveTo(24, 198); ctx.bezierCurveTo(180, 158, 310, 206, 496, 150); ctx.stroke()
+    ctx.fillStyle = 'rgba(8,18,30,.92)'
+    ctx.beginPath(); ctx.moveTo(112, 226); ctx.bezierCurveTo(178, 190, 320, 190, 404, 226); ctx.lineTo(388, 246); ctx.lineTo(130, 246); ctx.closePath(); ctx.fill()
+    ctx.fillStyle = 'rgba(180,235,255,.9)'
+    ctx.beginPath(); ctx.arc(160, 242, 6, 0, Math.PI * 2); ctx.arc(360, 242, 6, 0, Math.PI * 2); ctx.fill()
+  }
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.colorSpace = THREE.SRGBColorSpace
+  return texture
+}
+const adTextures = [makeAdTexture(0), makeAdTexture(1), makeAdTexture(2), makeAdTexture(3)]
+
+const addBillboard = (radius, angle, y, seed) => {
+  const texture = adTextures[seed % adTextures.length]
+  const width = 5.6 + (seed % 3) * 1.3
+  const height = width * .56
+  const material = new THREE.MeshBasicMaterial({ map: texture, toneMapped: false, fog: false })
+  const plane = new THREE.Mesh(new THREE.PlaneGeometry(width, height), material)
+  const centerX = Math.cos(angle) * radius
+  const centerZ = Math.sin(angle) * radius
+  const toCamX = 16 - centerX
+  const toCamZ = 20 - centerZ
+  const len = Math.hypot(toCamX, toCamZ) || 1
+  const nx = toCamX / len
+  const nz = toCamZ / len
+  plane.position.set(centerX + nx * 2.6, y, centerZ + nz * 2.6)
+  plane.rotation.y = Math.atan2(nx, nz)
+  city.add(plane)
+  cityBillboardMats.push(material)
+  cityBillboards.push(plane)
+  // 广告屏上的动态视频感叠层：光带、粒子和扫描线
+  const overlayCanvas = document.createElement('canvas')
+  overlayCanvas.width = 256
+  overlayCanvas.height = 144
+  const overlayCtx = overlayCanvas.getContext('2d')
+  const overlayTexture = new THREE.CanvasTexture(overlayCanvas)
+  overlayTexture.colorSpace = THREE.SRGBColorSpace
+  const overlayMaterial = new THREE.MeshBasicMaterial({ map: overlayTexture, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, fog: false })
+  const overlay = new THREE.Mesh(new THREE.PlaneGeometry(width * 0.98, height * 0.98), overlayMaterial)
+  overlay.position.set(plane.position.x + nx * 0.02, y, plane.position.z + nz * 0.02)
+  overlay.rotation.copy(plane.rotation)
+  city.add(overlay)
+  animatedAdScreens.push({ ctx: overlayCtx, texture: overlayTexture, width: 256, height: 144, phase: seed * 0.73 + Math.random() * 2, screen: plane })
+  const glow = new THREE.Mesh(
+    new THREE.PlaneGeometry(width * 1.45, height * 1.9),
+    new THREE.MeshBasicMaterial({ map: glowTexture, color: 0xffb07a, transparent: true, opacity: 0.18, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }),
+  )
+  glow.position.set(plane.position.x + nx * 0.02, y, plane.position.z + nz * 0.02)
+  glow.rotation.copy(plane.rotation)
+  city.add(glow)
+}
+
+function drawAdOverlay(ad, t) {
+  const { ctx, width: w, height: h } = ad
+  ctx.clearRect(0, 0, w, h)
+  ctx.globalCompositeOperation = 'lighter'
+  // 斜向流动光带
+  const sweep = ((t * 0.115 + ad.phase) % 1.45) - 0.2
+  const x = sweep * w
+  const grad = ctx.createLinearGradient(x - 36, 0, x + 70, h)
+  grad.addColorStop(0, 'rgba(255,160,110,0)')
+  grad.addColorStop(0.45, 'rgba(255,190,145,.26)')
+  grad.addColorStop(0.55, 'rgba(170,230,255,.18)')
+  grad.addColorStop(1, 'rgba(120,190,255,0)')
+  ctx.fillStyle = grad
+  ctx.fillRect(0, 0, w, h)
+  // 漂浮光点
+  for (let i = 0; i < 7; i++) {
+    const px = (Math.sin(t * 0.23 + i * 2.1 + ad.phase) * 0.5 + 0.5) * w
+    const py = (Math.cos(t * 0.31 + i * 1.7) * 0.5 + 0.5) * h
+    const a = 0.08 + (Math.sin(t * 0.9 + i) * 0.5 + 0.5) * 0.18
+    ctx.fillStyle = `rgba(255,220,190,${a})`
+    ctx.beginPath(); ctx.arc(px, py, 1.4 + (i % 3), 0, Math.PI * 2); ctx.fill()
+  }
+  // 扫描线
+  const lineY = ((t * 0.06 + ad.phase) % 1) * h
+  ctx.fillStyle = 'rgba(190,235,255,.08)'
+  ctx.fillRect(0, lineY, w, 1)
+  ctx.globalCompositeOperation = 'source-over'
+  ad.texture.needsUpdate = true
+}
+
+const addCityTower = (radius, angle, height, baseWidth, detail = 1) => {
+  const towerOrder = cityTowerOrder++
+  const group = new THREE.Group()
+  group.position.set(Math.cos(angle) * radius, 0, Math.sin(angle) * radius)
+  group.rotation.y = Math.random() * Math.PI
+  city.add(group)
+  cityTowerGroups.push({ group, delay: towerOrder * 0.009 })
+  const segments = Math.max(3, Math.round(height / (detail > 0 ? 2.7 : 4.2)))
+  let y = 0
+  let width = baseWidth
+  let depth = baseWidth * (0.78 + Math.random() * 0.32)
+  const goldTower = Math.random() < 0.035
+  const goldCrown = Math.random() < (height > 18 ? 0.14 : 0.035)
+  for (let i = 0; i < segments; i++) {
+    const h = Math.max(1.6, height / segments) * (0.82 + Math.random() * 0.26)
+    width *= 0.965 + Math.random() * 0.02
+    depth *= 0.965 + Math.random() * 0.02
+    const gold = goldTower || (i === segments - 1 && goldCrown) || Math.random() < 0.045
+    const material = gold
+      ? cityGoldMats[(i + Math.round(radius)) % cityGoldMats.length]
+      : cityWindowMats[(i + Math.round(angle * 10)) % cityWindowMats.length]
+    const block = new THREE.Mesh(cityBlockGeometry, material)
+    block.scale.set(width, h, depth)
+    block.position.set((Math.random() - 0.5) * 0.1, y + h / 2, (Math.random() - 0.5) * 0.1)
+    block.rotation.y = (Math.random() - 0.5) * 0.06
+    group.add(block)
+    y += h + 0.105
+    if (detail > 0 && Math.random() < 0.38) {
+      const stripColor = [0xff5a9a, 0x54e9ff, 0xffc26b, 0x8d7dff][Math.floor(Math.random() * 4)]
+      const strip = new THREE.Mesh(
+        new THREE.BoxGeometry(0.13, h * 0.82, 0.13),
+        new THREE.MeshBasicMaterial({ color: stripColor, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, fog: false }),
+      )
+      strip.position.set(width / 2 + 0.03, y - h / 2, depth / 2 + 0.03)
+      group.add(strip)
+      cityNeonMats.push(strip.material)
+    }
+  }
+  // 屋顶细缝金冠
+  const crown = new THREE.Mesh(cityBlockGeometry, cityGoldMats[Math.floor(Math.random() * cityGoldMats.length)])
+  crown.scale.set(width * 0.72, 0.28, depth * 0.72)
+  crown.position.y = y + 0.14
+  group.add(crown)
+  if (Math.random() < 0.5) {
+    const color = [0xff5a5a, 0x5be7ff, 0xffc46b][Math.floor(Math.random() * 3)]
+    const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9, toneMapped: false }))
+    beacon.position.y = y + 0.35
+    beacon.userData.baseColor = beacon.material.color.clone()
+    beacon.userData.phase = Math.random() * Math.PI * 2
+    group.add(beacon)
+    cityBeacons.push(beacon)
+  }
+  if (detail > 0 && height > 11 && radius < 105 && Math.random() < 0.55) addBillboard(radius, angle, y * (0.45 + Math.random() * 0.28), Math.round(radius + angle * 10))
+}
+
 const cameraAzimuth = Math.atan2(0.95, 0.62)
 const angleDiff = (a, b) => {
   let d = a - b
@@ -163,39 +452,61 @@ const angleDiff = (a, b) => {
   while (d < -Math.PI) d += Math.PI * 2
   return Math.abs(d)
 }
-let placed = 0
-while (placed < 26) {
-  const band = placed < 8 ? 0 : placed < 18 ? 1 : 2
-  const radius = band === 0 ? 34 + Math.random() * 12
-    : band === 1 ? 50 + Math.random() * 18 : 72 + Math.random() * 26
+// 以默认视角为背景，集中排布可见天际线；两侧再补少量楼群
+const backgroundAngle = cameraAzimuth + Math.PI
+const layerPlan = [
+  { count: 10, radius: 94, spread: 20, height: 11, hVar: 13, width: 3.8, detail: 1 },
+  { count: 12, radius: 124, spread: 26, height: 15, hVar: 18, width: 4.2, detail: 1 },
+  { count: 12, radius: 158, spread: 32, height: 20, hVar: 24, width: 4.6, detail: 1 },
+  { count: 12, radius: 198, spread: 40, height: 26, hVar: 30, width: 5.0, detail: 0 },
+  { count: 10, radius: 248, spread: 50, height: 34, hVar: 36, width: 5.4, detail: 0 },
+]
+for (const layer of layerPlan) {
+  for (let i = 0; i < layer.count; i++) {
+    const angle = backgroundAngle + (Math.random() - 0.5) * 2.2
+    const radius = layer.radius + Math.random() * layer.spread
+    const height = layer.height + Math.random() * layer.hVar
+    const width = layer.width + Math.random() * 3.2
+    addCityTower(radius, angle, height, width, layer.detail)
+  }
+}
+// 两侧补楼，让城市从办公室两侧延伸出去
+for (let i = 0; i < 14; i++) {
+  const angle = cameraAzimuth + (Math.random() > 0.5 ? 1 : -1) * (0.55 + Math.random() * 1.35)
+  const radius = 96 + Math.random() * 150
+  addCityTower(radius, angle, 11 + Math.random() * 34, 3.4 + Math.random() * 5, 0)
+}
+
+// 低层街区填满天际线底部
+for (let i = 0; i < 28; i++) {
+  const angle = backgroundAngle + (Math.random() - 0.5) * 2.5
+  const radius = 86 + Math.random() * 145
+  addCityTower(radius, angle, 5 + Math.random() * 8, 5.5 + Math.random() * 8, 0)
+}
+
+// 办公室周围的近景方块街区，填满地面
+for (let i = 0; i < 44; i++) {
   const angle = Math.random() * Math.PI * 2
-  if (band < 2 && angleDiff(angle, cameraAzimuth) < 0.55) continue
-  const height = band === 0 ? 8 + Math.random() * 12
-    : band === 1 ? 10 + Math.random() * 18 : 12 + Math.random() * 26
-  const width = band === 0 ? 3.6 + Math.random() * 4
-    : band === 1 ? 3.2 + Math.random() * 4.5 : 3 + Math.random() * 5.5
-  const depth = band === 0 ? 3.6 + Math.random() * 4
-    : band === 1 ? 3.2 + Math.random() * 4.5 : 3 + Math.random() * 5.5
-  const building = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), cityMats[placed % 3])
-  building.position.set(Math.cos(angle) * radius, height / 2, Math.sin(angle) * radius)
-  building.rotation.y = Math.random() * Math.PI
-  city.add(building)
-  if (Math.random() < 0.5) {
-    const beaconColor = [0xff5a5a, 0x5be7ff, 0xffc46b][placed % 3]
-    const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), new THREE.MeshBasicMaterial({ color: beaconColor, transparent: true, opacity: 0.85 }))
-    beacon.position.set(building.position.x, height + 0.3, building.position.z)
-    beacon.userData.baseColor = beacon.material.color.clone()
-    beacon.userData.phase = Math.random() * Math.PI * 2
-    city.add(beacon)
-    cityBeacons.push(beacon)
-  }
-  if (Math.random() < 0.45) {
-    const stripColor = [0x2f9fff, 0x5be7ff, 0xb18cff][placed % 3]
-    const strip = new THREE.Mesh(new THREE.BoxGeometry(0.07, height * 0.7, 0.07), new THREE.MeshBasicMaterial({ color: stripColor, transparent: true, opacity: 0.75 }))
-    strip.position.set(building.position.x + Math.cos(angle + Math.PI / 2) * (width / 2 + 0.03), height * 0.5, building.position.z + Math.sin(angle + Math.PI / 2) * (depth / 2 + 0.03))
-    city.add(strip)
-  }
-  placed += 1
+  const radius = 52 + Math.random() * 32
+  if (radius < 62 && angleDiff(angle, cameraAzimuth) < 0.62) continue
+  addCityTower(radius, angle, 2.5 + Math.random() * 5.5, 1.8 + Math.random() * 2.4, 0)
+}
+// 中景高楼，填满办公室与远处天际线之间的空隙
+for (let i = 0; i < 20; i++) {
+  const angle = backgroundAngle + (Math.random() - 0.5) * 2.6
+  addCityTower(70 + Math.random() * 32, angle, 8 + Math.random() * 12, 2.8 + Math.random() * 2.6, 0)
+}
+// 固定几块大型户外广告，保证正面视角能看到
+addBillboard(104, backgroundAngle - 0.34, 15, 11)
+addBillboard(128, backgroundAngle + 0.28, 19, 12)
+addBillboard(164, backgroundAngle - 0.08, 25, 13)
+addBillboard(94, backgroundAngle + 0.58, 12, 14)
+
+// 更远处的剪影，制造望不到边的层次
+for (let i = 0; i < 18; i++) {
+  const angle = Math.random() * Math.PI * 2
+  const radius = 320 + Math.random() * 90
+  addCityTower(radius, angle, 36 + Math.random() * 48, 6 + Math.random() * 8, 0)
 }
 /* 星尘 *//* 星尘 *//* 星尘 *//* 星尘 */
 const dust = (() => {
@@ -209,7 +520,7 @@ const dust = (() => {
   const geometry = new THREE.BufferGeometry()
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
   const points = new THREE.Points(geometry, new THREE.PointsMaterial({
-    color: 0x7fffd0,
+    color: 0xffd0a0,
     size: 0.05,
     transparent: true,
     opacity: 0.3,
@@ -242,10 +553,10 @@ const DAY_THEME = {
   key: new THREE.Color(0xfff2dc),
   rim: new THREE.Color(0xd2e6ff),
   fill: new THREE.Color(0xffe9c9),
-  ground: new THREE.Color(0x8fa5b6),
+  ground: new THREE.Color(0x182435),
   city: new THREE.Color(0xeef3f7),
   hemiI: 2.4, keyI: 3.2, rimI: 0.55, fillI: 0.45,
-  exposure: 1.18, bloom: 0.18, dust: 0.05, grid: 0.18, neon: 0.5,
+  exposure: 1.18, bloom: 0.18, dust: 0.05, grid: 0.32, neon: 0.65,
 }
 let themeMode = 'night'
 let themeMix = 0
@@ -268,7 +579,6 @@ function applyThemeFrame() {
   themeMix += (themeTarget - themeMix) * 0.07
   if (Math.abs(themeTarget - themeMix) < 0.002) themeMix = themeTarget
   const mix = themeMix
-  scene.background.copy(NIGHT_THEME.bg).lerp(DAY_THEME.bg, mix)
   scene.fog.color.copy(NIGHT_THEME.bg).lerp(DAY_THEME.bg, mix)
   hemi.color.copy(NIGHT_THEME.hemiSky).lerp(DAY_THEME.hemiSky, mix)
   hemi.groundColor.copy(NIGHT_THEME.hemiGround).lerp(DAY_THEME.hemiGround, mix)
@@ -284,9 +594,13 @@ function applyThemeFrame() {
   bloom.strength = NIGHT_THEME.bloom + (DAY_THEME.bloom - NIGHT_THEME.bloom) * mix
   renderer.toneMappingExposure = NIGHT_THEME.exposure + (DAY_THEME.exposure - NIGHT_THEME.exposure) * mix
   dust.material.opacity = NIGHT_THEME.dust + (DAY_THEME.dust - NIGHT_THEME.dust) * mix
-  for (const material of cityMats) material.color.copy(NIGHT_THEME.city).lerp(DAY_THEME.city, mix)
+  for (const material of cityWindowMats) material.emissiveIntensity = 1.35 - mix * 0.5
+  for (const material of cityGoldMats) material.emissiveIntensity = 0.28 - mix * 0.1
+  for (const material of cityNeonMats) material.opacity = 0.85 - mix * 0.22
+  for (const material of cityBillboardMats) material.opacity = 0.96 - mix * 0.18
   const neonMaterial = neonSign?.material
   if (neonMaterial) neonMaterial.opacity = NIGHT_THEME.neon + (DAY_THEME.neon - NIGHT_THEME.neon) * mix
+  sunsetLight.intensity = 1.25 - mix * 0.85
   for (const item of [...themeLights, ...annexLights]) item.light.intensity = item.night + (item.day - item.night) * mix
   const weatherDim = weatherMode === 'storm' ? 0.86 : weatherMode === 'rain' || weatherMode === 'snow' ? 0.92 : weatherMode === 'cloudy' ? 0.95 : weatherMode === 'wind' ? 0.98 : 1
   hemi.intensity *= weatherDim
@@ -369,7 +683,6 @@ for (const [name, src] of Object.entries(FACE_SRC)) {
   faceTextures[name] = texture
 }
 const CUSTOM_FACE_KEY = 'agent-office-custom-face'
-const GLASS_KEY = 'agent-office-ui-opacity'
 let customFaceTexture = null
 let customFaceData = ''
 const FACE_FOR_STATUS = {
@@ -607,6 +920,45 @@ function setWeather(mode, wind = 0) {
   if (wet || snow || windy) seedWeatherParticles(weatherMode)
 }
 
+const WEATHER_ICONS = {
+  sun: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><circle cx="8" cy="8" r="3.1"/><path d="M8 1.2v1.5M8 13.3v1.5M1.2 8h1.5M13.3 8h1.5M3.2 3.2l1 1M11.8 11.8l1 1M12.8 3.2l-1 1M4.2 11.8l-1 1"/></svg>',
+  cloud: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M4.2 11.2h7.1a2.7 2.7 0 0 0 .2-5.4 4 4 0 0 0-7.6-1.1A3.3 3.3 0 0 0 4.2 11.2Z"/></svg>',
+  rain: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M4.2 9.8h7.1a2.7 2.7 0 0 0 .2-5.4 4 4 0 0 0-7.6-1.1A3.3 3.3 0 0 0 4.2 9.8Z"/><path d="M5.2 12.3l-.6 1.3M8.1 12.3l-.6 1.3M11 12.3l-.6 1.3"/></svg>',
+  snow: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><path d="M4.2 9.8h7.1a2.7 2.7 0 0 0 .2-5.4 4 4 0 0 0-7.6-1.1A3.3 3.3 0 0 0 4.2 9.8Z"/><path d="M5 12.4h.01M8 13.2h.01M11 12.4h.01"/></svg>',
+  wind: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><path d="M1.5 5.5h8.2a2.1 2.1 0 1 0-2.1-2.1M1.5 8.5h11.2a2.1 2.1 0 1 1-2.1 2.1M2.8 11.5h5.1"/></svg>',
+  storm: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M4.2 9.4h7.1a2.7 2.7 0 0 0 .2-5.4 4 4 0 0 0-7.6-1.1A3.3 3.3 0 0 0 4.2 9.4Z"/><path d="M8.7 9.7 6.8 12.4h2.5l-1 2.1"/></svg>',
+}
+
+function weatherPresentation(code, wind) {
+  const c = Number(code)
+  const w = Number(wind)
+  if (c >= 95) return { label: '雷雨', icon: WEATHER_ICONS.storm, mode: 'storm' }
+  if (c >= 71 && c <= 86) return { label: '下雪', icon: WEATHER_ICONS.snow, mode: 'snow' }
+  if ((c >= 51 && c <= 67) || (c >= 80 && c <= 82)) return { label: '下雨', icon: WEATHER_ICONS.rain, mode: 'rain' }
+  if (c === 45 || c === 48) return { label: '有雾', icon: WEATHER_ICONS.cloud, mode: 'cloudy' }
+  if (c === 2) return { label: '多云', icon: WEATHER_ICONS.cloud, mode: 'cloudy' }
+  if (c === 3) return { label: '阴天', icon: WEATHER_ICONS.cloud, mode: 'cloudy' }
+  if (w >= 28) return { label: '大风', icon: WEATHER_ICONS.wind, mode: 'wind' }
+  return { label: '晴天', icon: WEATHER_ICONS.sun, mode: 'clear' }
+}
+
+function updateWeatherNow(code, temperature, wind) {
+  const el = $('#weatherNow')
+  const icon = $('#weatherIcon')
+  const label = $('#weatherLabel')
+  if (!el || !icon || !label) return
+  const temp = Number(temperature)
+  if (!Number.isFinite(temp)) {
+    el.hidden = true
+    return
+  }
+  const presentation = weatherPresentation(code, wind)
+  icon.innerHTML = presentation.icon
+  label.textContent = `今天 ${presentation.label} ${Math.round(temp)}°`
+  el.title = `今天 · ${presentation.label} · ${Math.round(temp)}°C · 风速 ${Math.round(Number(wind) || 0)} km/h`
+  el.hidden = false
+}
+
 function refreshWeather() {
   let location = null
   try {
@@ -618,6 +970,8 @@ function refreshWeather() {
   } catch {}
   if (!location) {
     setWeather('clear')
+    const el = $('#weatherNow')
+    if (el) el.hidden = true
     return
   }
   fetch(`/agent-office/api/weather?lat=${encodeURIComponent(location.lat)}&lon=${encodeURIComponent(location.lon)}`, { cache: 'no-store' })
@@ -625,6 +979,8 @@ function refreshWeather() {
     .then(data => {
       if (!data?.ok) {
         setWeather('clear')
+        const el = $('#weatherNow')
+        if (el) el.hidden = true
         return
       }
       const code = Number(data.code)
@@ -635,6 +991,7 @@ function refreshWeather() {
       else if (code === 2 || code === 3 || code === 45 || code === 48) mode = 'cloudy'
       else if (Number(data.wind) >= 28) mode = 'wind'
       setWeather(mode, Number(data.wind))
+      updateWeatherNow(data.code, data.temperature, data.wind)
     })
     .catch(() => setWeather('clear'))
 }
@@ -1599,20 +1956,8 @@ function loadCustomFace() {
   })
 }
 
-function applyGlassSetting() {
-  let raw = ''
-  try { raw = localStorage.getItem(GLASS_KEY) ?? '' } catch {}
-  const value = Number.parseFloat(raw)
-  if (Number.isFinite(value)) {
-    document.documentElement.style.setProperty('--glass-alpha', String(Math.min(0.98, Math.max(0.5, value / 100))))
-  } else {
-    document.documentElement.style.removeProperty('--glass-alpha')
-  }
-}
-
 window.addEventListener('storage', event => {
   if (event.key === CUSTOM_FACE_KEY) loadCustomFace()
-  if (event.key === GLASS_KEY) applyGlassSetting()
 })
 let usage = { tokens_week: 0, tokens_today: 0 }
 let selectedId = null
@@ -1639,20 +1984,25 @@ function globalPose(floorsCount) {
   const height = Math.max(0, (floorsCount - 1) * FLOOR_GAP)
   const centerX = ((floorsCount - 1) * OFFSET_X) / 2
   const centerZ = ((floorsCount - 1) * OFFSET_Z) / 2
-  const dist = (19 + floorsCount * 3) * viewScale()
+  const dist = (19 + floorsCount * 3) * viewScale() * 0.72
   const target = new THREE.Vector3(centerX + 3.6, height / 2 + 1.0, centerZ + 0.8)
   return {
     target,
-    position: new THREE.Vector3(centerX + dist * 0.42, target.y + dist * 0.82, centerZ + dist * 0.9),
+    position: new THREE.Vector3(centerX + dist * 0.55, target.y + dist * 0.32, centerZ + dist * 1.08),
   }
 }
 
 function focusPose(floor) {
-  const center = floor.offset.clone()
-  const target = center.clone().add(new THREE.Vector3(0, 1.2, 0))
+  const box = new THREE.Box3().setFromObject(floor.group)
+  const center = box.getCenter(new THREE.Vector3())
+  const size = box.getSize(new THREE.Vector3())
+  const radius = Math.max(size.x, size.z * 1.08, size.y * 1.5)
+  const zoom = Math.min(2, Math.max(1, window.visualViewport?.scale || 1))
+  const dist = radius * 1.3 * clamp(viewScale(), 0.95, 1.2) * zoom
+  const target = center.clone().add(new THREE.Vector3(0, -0.5, 0))
   return {
     target,
-    position: target.clone().add(new THREE.Vector3(7.4, 6.0, 10.2).multiplyScalar(clamp(viewScale(), 0.95, 1.2))),
+    position: target.clone().add(new THREE.Vector3(0, dist * 0.58, dist)),
   }
 }
 
@@ -1699,6 +2049,13 @@ function setFloorFocus(index) {
     if (entry === undefined || (focused && entry.agent.team !== floors.find(item => item.index === index)?.team)) clearSelection()
   }
   applyPose()
+  if (focused && cameraGoal !== null && targetGoal !== null) {
+    camera.position.copy(cameraGoal)
+    controls.target.copy(targetGoal)
+    cameraGoal = null
+    targetGoal = null
+    controls.update()
+  }
   renderFloors()
 }
 
@@ -1726,10 +2083,10 @@ function selectAgent(id, moveCamera = false) {
   renderCard(agentsById.get(id)?.agent ?? null)
   if (moveCamera && agentsById.get(id)) {
     const entry = agentsById.get(id)
+    const floor = floors.find(item => item.team === entry.agent.team)
     const world = new THREE.Vector3()
     entry.robot.getWorldPosition(world)
-    targetGoal = world.clone().add(new THREE.Vector3(0, 1.0, 0))
-    // 保持当前镜头距离与朝向，只平移到该 Agent，避免点选时突然拉近
+    targetGoal = floor ? floor.offset.clone().add(new THREE.Vector3(0, 1.2, 0)) : world.clone().add(new THREE.Vector3(0, 1.0, 0))
     const viewOffset = new THREE.Vector3().subVectors(camera.position, controls.target)
     if (viewOffset.length() < 4) viewOffset.copy(CAM_DIR).multiplyScalar(18)
     cameraGoal = targetGoal.clone().add(viewOffset)
@@ -1807,12 +2164,14 @@ function renderMeter() {
 }
 
 function renderFeed() {
-  $('#feedBody').innerHTML = activities.length === 0
+  const feedBody = $('#feedBody')
+  feedBody.innerHTML = activities.length === 0
     ? '<div class="evt empty">等待状态变化…</div>'
-    : activities.map(item => {
+    : [...activities].reverse().map(item => {
       const status = STATUS[item.status] ?? STATUS.resting
       return `<div class="evt"><span class="t">${new Date(item.time).toTimeString().slice(0, 5)}</span><i style="background:${status.color}"></i><b>${esc(item.name)}</b><span>${esc(item.text)}</span></div>`
     }).join('')
+  requestAnimationFrame(() => { feedBody.scrollTop = feedBody.scrollHeight })
 }
 
 let cardHideTimer = null
@@ -2282,47 +2641,37 @@ function buildAnnex() {
   signCanvas.height = 160
   const sctx = signCanvas.getContext('2d')
   sctx.clearRect(0, 0, 512, 160)
-  sctx.fillStyle = 'rgba(5,16,28,.88)'
-  sctx.beginPath()
-  sctx.roundRect(6, 6, 500, 148, 24)
-  sctx.fill()
-  sctx.strokeStyle = 'rgba(84,168,255,.55)'
-  sctx.lineWidth = 2
-  sctx.stroke()
-  sctx.strokeStyle = '#54a8ff'
-  sctx.lineWidth = 13
+  sctx.shadowColor = 'rgba(64,170,255,.95)'
+  sctx.shadowBlur = 22
+  sctx.strokeStyle = '#62c8ff'
+  sctx.lineWidth = 10
   sctx.lineCap = 'round'
   const drawX = (cx, cy, size) => {
     sctx.beginPath(); sctx.moveTo(cx - size, cy - size); sctx.lineTo(cx + size, cy + size); sctx.stroke()
     sctx.beginPath(); sctx.moveTo(cx + size, cy - size); sctx.lineTo(cx - size, cy + size); sctx.stroke()
   }
-  drawX(74, 74, 12)
-  drawX(438, 74, 12)
-  sctx.fillStyle = '#d8efff'
+  drawX(82, 78, 13)
+  drawX(430, 78, 13)
+  sctx.fillStyle = '#e2f5ff'
   sctx.textAlign = 'center'
-  sctx.font = '700 30px ui-monospace, Menlo, monospace'
-  sctx.fillText('MCP', 256, 86)
+  sctx.textBaseline = 'middle'
+  sctx.font = '700 52px ui-monospace, Menlo, monospace'
+  sctx.fillText('MCP', 256, 84)
   const signTex = new THREE.CanvasTexture(signCanvas)
   signTex.colorSpace = THREE.SRGBColorSpace
-  mcpSign = new THREE.Sprite(new THREE.SpriteMaterial({ map: signTex, transparent: true, depthWrite: false, toneMapped: false }))
-  mcpSign.position.set(5.6, 4.3, 1.18)
-  mcpSign.scale.set(1.8, 0.45, 1)
-  mcpSign.visible = false
+  mcpSign = new THREE.Sprite(new THREE.SpriteMaterial({ map: signTex, transparent: true, depthWrite: false, depthTest: true, toneMapped: false }))
+  mcpSign.position.set(5.55, 3.62, 1.02)
+  mcpSign.scale.set(1.85, 0.58, 1)
+  mcpSign.visible = true
   mcpGroup.add(mcpSign)
 
   const signGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture, color: 0x3f9dff, transparent: true, opacity: 0.24, blending: THREE.AdditiveBlending, depthWrite: false }))
   signGlow.position.copy(mcpSign.position)
-  signGlow.scale.set(2.5, 0.8, 1)
-  signGlow.visible = false
+  signGlow.scale.set(2.0, 0.62, 1)
+  signGlow.visible = true
   mcpGroup.add(signGlow)
 
-  // 小号 MCP 标签：固定屏幕字号，和小号说明文字一致
-  const mcpTagEl = document.createElement('div')
-  mcpTagEl.className = 'mcpTag'
-  mcpTagEl.innerHTML = '<span class="x">✕</span><span>MCP</span><span class="x">✕</span>'
-  const mcpTag = new CSS2DObject(mcpTagEl)
-  mcpTag.position.set(5.55, 3.62, 1.02)
-  mcpGroup.add(mcpTag)
+
 }
 
 function rebuild(list) {
@@ -2461,6 +2810,10 @@ function tick() {
   requestAnimationFrame(tick)
   applyThemeFrame()
   updateWeatherFrame(t)
+  if (t - (drawAdOverlay.last || 0) > 0.09) {
+    drawAdOverlay.last = t
+    for (const ad of animatedAdScreens) drawAdOverlay(ad, t)
+  }
   if (mcpCurve && mcpBeads.length > 0) {
     const flow = clock.getElapsedTime()
     for (const bead of mcpBeads) {
@@ -2478,7 +2831,7 @@ function tick() {
       dash.mesh.position.copy(point)
       dash.mesh.quaternion.setFromUnitVectors(axis, tangent.normalize())
     }
-    if (mcpSign) mcpSign.position.y = 4.3 + Math.sin(flow * 0.9) * 0.025
+    if (mcpSign) mcpSign.position.y = 3.62 + Math.sin(flow * 0.9) * 0.02
     if (studyClock) {
       const now = Date.now()
       if (now >= studyClock.endAt) {
@@ -2738,6 +3091,10 @@ function finishIntro() {
     mcpGroup.visible = true
     mcpGroup.scale.set(1, 1, 1)
   }
+  city.scale.y = 1
+  for (const tower of cityTowerGroups) tower.group.scale.y = 1
+  for (const billboard of cityBillboards) billboard.visible = true
+  for (const material of cityNeonMats) material.opacity = 0.85
   const pose = globalPose(floors.length)
   controls.target.copy(pose.target)
   camera.position.copy(pose.position)
@@ -2756,6 +3113,7 @@ function playIntro() {
   const intro = $('#intro')
   if (!intro) return
   introPlayed = true
+  intro.addEventListener('click', () => finishIntro(), { once: true })
   if (reduceMotion) {
     finishIntro()
     return
@@ -2774,25 +3132,30 @@ function playIntro() {
     floor.group.position.y = floor.offset.y - 5.5
   }
   const pose = globalPose(floors.length)
-  camera.position.set(pose.position.x + 9, pose.position.y + 11, pose.position.z + 9)
+  camera.position.set(pose.position.x + 26, pose.position.y + 15, pose.position.z + 26)
   controls.target.copy(pose.target)
   controls.update()
+  for (const billboard of cityBillboards) billboard.visible = false
+  for (const material of cityNeonMats) material.opacity = 0
+  city.scale.y = 0.001
 
   introTl = gsap.timeline()
   introTl.to({ value: 0 }, { value: 1, duration: 2.4, ease: 'none' }, 0)
-  introTl.to(camera.position, { x: pose.position.x, y: pose.position.y, z: pose.position.z, duration: 2.2, ease: 'power2.inOut' }, 0.15)
-  introTl.to(controls.target, { x: pose.target.x, y: pose.target.y, z: pose.target.z, duration: 2.2, ease: 'power2.inOut' }, 0.15)
+  introTl.to(camera.position, { x: pose.position.x, y: pose.position.y, z: pose.position.z, duration: 3.6, ease: 'power2.inOut' }, 0.15)
+  introTl.to(controls.target, { x: pose.target.x, y: pose.target.y, z: pose.target.z, duration: 3.6, ease: 'power2.inOut' }, 0.15)
   floors.forEach((floor, i) => {
     introTl.to(floor.group.scale, { x: 1, y: 1, z: 1, duration: 0.85, ease: 'back.out(1.35)' }, 0.25 + i * 0.3)
     introTl.to(floor.group.position, { y: floor.offset.y, duration: 0.85, ease: 'power2.out' }, 0.25 + i * 0.3)
   })
+  introTl.to(city.scale, { y: 1, duration: 1.35, ease: 'power3.out' }, 0.15)
   if (annex) {
     introTl.to(annex.scale, { x: 0.84, y: 0.84, z: 0.84, duration: 0.95, ease: 'back.out(1.25)' }, 1.05)
     introTl.to(annex.position, { y: 0, duration: 0.95, ease: 'power2.out' }, 1.05)
   }
   if (mcpGroup) introTl.to(mcpGroup.scale, { x: 1, y: 1, z: 1, duration: 0.8, ease: 'power2.out' }, 1.45)
-  introTl.call(() => document.body.classList.remove('intro'), null, 2.25)
-  introTl.to(intro, { opacity: 0, duration: 0.5, onComplete: () => intro.remove() }, 2.3)
+  introTl.call(() => document.body.classList.remove('intro'), null, 3.45)
+  introTl.to(intro, { opacity: 0, duration: 0.5, onComplete: () => intro.remove() }, 3.5)
+  setTimeout(() => { if (document.body.classList.contains('intro')) finishIntro() }, 6000)
 }
 
 async function poll() {
@@ -2858,12 +3221,12 @@ window.__NS = {
   setFloorFocus,
   toggleFloorFocus,
   setWeather,
+  finishIntro,
 }
 rebuild([])
 $('#offline').classList.add('show')
 $('#offline').textContent = '正在读取本机会话…'
 buildAnnex()
-applyGlassSetting()
 loadCustomFace()
 refreshWeather()
 poll()
@@ -2871,5 +3234,80 @@ setInterval(poll, 2000)
 refreshBalance()
 setInterval(refreshBalance, 60_000)
 tick()
+/* 浏览器缩放时，把 HUD 重新贴到可视区域，避免左右被裁 */
+function fitHudToViewport() {
+  const vv = window.visualViewport
+  const visual = vv && (Math.abs((vv.scale || 1) - 1) > 0.02 || vv.width < window.innerWidth - 2)
+  const top = document.querySelector('#top')
+  const left = document.querySelector('#left')
+  const right = document.querySelector('#right')
+  const feed = document.querySelector('#feed')
+  if (!top || !left || !right || !feed) return
+  const centered = [document.querySelector('#focusChip'), document.querySelector('#hint'), document.querySelector('#offline')].filter(Boolean)
+  const centerInViewport = () => {
+    const v = window.visualViewport
+    const width = v ? v.width : window.innerWidth
+    const offset = v ? v.offsetLeft : 0
+    for (const el of centered) {
+      el.style.left = `${offset + width / 2}px`
+      el.style.right = 'auto'
+      el.style.transform = 'translateX(-50%)'
+    }
+  }
+  centerInViewport()
+  if (!visual) {
+    for (const el of [top, left, right, feed]) {
+      el.style.removeProperty('left')
+      el.style.removeProperty('right')
+      el.style.removeProperty('width')
+      el.style.removeProperty('top')
+      el.style.removeProperty('bottom')
+      el.style.removeProperty('max-height')
+    }
+    return
+  }
+  const vw = vv.width
+  const margin = 12
+  const leftWidth = left.getBoundingClientRect().width
+  const rightWidth = right.getBoundingClientRect().width
+  const gap = 12
+  const vh = vv.height
+  const oy = vv.offsetTop || 0
+  const hs = Number.parseFloat(getComputedStyle(left).zoom) || 1
+  top.style.left = `${margin / hs}px`
+  top.style.right = 'auto'
+  top.style.width = `${(vw - margin * 2) / hs}px`
+  top.style.top = `${(oy + 12) / hs}px`
+  left.style.left = `${margin / hs}px`
+  left.style.top = `${(oy + 70) / hs}px`
+  left.style.maxHeight = `${Math.max(180, vh - 84) / hs}px`
+  right.style.left = `${(vw - margin - rightWidth) / hs}px`
+  right.style.right = 'auto'
+  right.style.top = `${(oy + 70) / hs}px`
+  right.style.bottom = 'auto'
+  right.style.maxHeight = `${Math.max(180, vh - 84) / hs}px`
+  feed.style.left = `${(margin + leftWidth + gap) / hs}px`
+  feed.style.right = 'auto'
+  feed.style.width = `${Math.max(160, vw - margin * 2 - leftWidth - rightWidth - gap * 2) / hs}px`
+  feed.style.top = `${Math.max(oy + 120, oy + vh - feed.offsetHeight - 12) / hs}px`
+  feed.style.bottom = 'auto'
+}
+function resetPageScroll() {
+  try {
+    window.scrollTo(0, 0)
+    document.documentElement.scrollTop = 0
+    document.documentElement.scrollLeft = 0
+    document.body.scrollTop = 0
+    document.body.scrollLeft = 0
+  } catch {}
+}
+window.addEventListener('resize', () => { resetPageScroll(); fitHudToViewport() })
+window.addEventListener('orientationchange', () => { resetPageScroll(); fitHudToViewport() })
+window.visualViewport?.addEventListener('resize', fitHudToViewport)
+window.visualViewport?.addEventListener('scroll', fitHudToViewport)
+resetPageScroll()
+fitHudToViewport()
+setTimeout(() => { resetPageScroll(); fitHudToViewport() }, 50)
+setTimeout(() => { resetPageScroll(); fitHudToViewport() }, 500)
 setTimeout(() => $('#hint').classList.add('hide'), 9000)
 setTimeout(() => { if (!introPlayed) finishIntro() }, 9000)
