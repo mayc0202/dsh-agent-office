@@ -2675,6 +2675,7 @@ function buildAnnex() {
 }
 
 function rebuild(list) {
+  const keepFocus = focusFloor
   for (const [, entry] of agentsById) {
     const motion = entry.robot?.userData?.parts?.motion
     if (motion) gsap.killTweensOf(motion)
@@ -2711,6 +2712,7 @@ function rebuild(list) {
   targetGoal = null
   cameraGoal = null
   controls.update()
+  if (keepFocus !== null && floors.some(floor => floor.index === keepFocus)) setFloorFocus(keepFocus)
 }
 
 /* ------------------------------------------------------------------ *
@@ -2754,7 +2756,7 @@ renderer.domElement.addEventListener('pointerup', event => {
   const hit = pick(event)
   if (hit === null) return
   if (hit.kind === 'agent') selectAgent(hit.id, true)
-  else toggleFloorFocus(hit.index)
+  else setFloorFocus(hit.index)
 })
 renderer.domElement.addEventListener('pointermove', event => {
   const hit = pick(event)
@@ -2795,7 +2797,7 @@ document.addEventListener('click', event => {
     return
   }
   const floor = event.target.closest('#floorBody .floor')
-  if (floor !== null) toggleFloorFocus(Number(floor.dataset.index))
+  if (floor !== null) setFloorFocus(Number(floor.dataset.index))
 })
 document.addEventListener('keydown', event => {
   if (event.key !== 'Escape') return
